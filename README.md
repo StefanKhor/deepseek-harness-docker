@@ -10,7 +10,9 @@ Unofficial community Docker image for [DeepSeek Harness](https://github.com/deep
 | Tags | `latest`, `0.1.0-rc.7` (matches npm `@deepseek-ai/dsh`) |
 | Arch | `amd64`, `arm64` |
 
-## Docker
+## Installation
+
+### 1. Docker
 
 ```bash
 docker run --rm -p 3080:3080 \
@@ -21,7 +23,7 @@ docker run --rm -p 3080:3080 \
 
 Open http://127.0.0.1:3080 → **Settings → Models** → add API key.
 
-## Docker Compose
+### 2. Docker Compose
 
 ```bash
 git clone https://github.com/StefanKhor/deepseek-harness-docker.git
@@ -31,17 +33,16 @@ docker compose up -d
 
 Stop: `docker compose down` (keeps data). Wipe data: `docker compose down -v`.
 
-### Custom paths
+Custom paths:
 
 ```bash
-# host folders instead of Docker named volumes
 export DSH_HOME_PATH=./data/dsh-home
 export DSH_WORKSPACE=/path/to/your/project
 export DSH_PORT=3080
 docker compose up -d
 ```
 
-## Data that persists
+## Data Persistence
 
 Upstream stores user data under **`$DSH_HOME`** (default `~/.dsh`).
 
