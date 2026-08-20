@@ -14,7 +14,9 @@ Unofficial community Docker image for [DeepSeek Harness](https://github.com/deep
 
 ### Docker Compose (recommended)
 
-Caddy is always in front (HTTP). dsh is not published on the host.
+**nginx** terminates **HTTPS** with an auto-generated self-signed RSA cert. dsh is not published on the host.
+
+HTTPS is required so the web UI works on LAN IPs (`crypto.randomUUID` needs a secure context). Accept the browser certificate warning once.
 
 ```bash
 git clone https://github.com/StefanKhor/deepseek-harness-docker.git
@@ -26,11 +28,25 @@ cd deepseek-harness-docker
 docker compose up -d
 ```
 
-Open **http://127.0.0.1:3080**
+Open **https://127.0.0.1:8443** or **https://\<lan-ip>:8443** (not `http://`).
+
+| Port | How | URL |
+|---|---|---|
+| **8443** (default) | — | `https://host:8443` |
+| **443** | `HTTPS_PORT=443` in `.env` | `https://host` |
+| custom | `HTTPS_PORT=9443` | `https://host:9443` |
+
+```bash
+docker compose down
+git pull
+docker compose up -d --force-recreate
+docker compose logs nginx
+curl -kI https://127.0.0.1:8443
+```
 
 Stop: `docker compose down` · wipe data: `docker compose down -v`
 
-### Docker only (no Caddy)
+### Docker only (no nginx)
 
 ```bash
 docker run --rm -p 127.0.0.1:3080:3080 \
@@ -39,16 +55,18 @@ docker run --rm -p 127.0.0.1:3080:3080 \
   ghcr.io/stefankhor/dsh-docker:latest
 ```
 
+Use **http://127.0.0.1:3080** only (localhost is already a secure context). No LAN.
+
 ## Access
 
 | | |
 |---|---|
-| URL | **http://**127.0.0.1:3080 |
+| URL | **https://**127.0.0.1:8443 or **https://**\<lan-ip>:8443 |
 | Password | `AUTH_PASSWORD` in `.env` (optional) |
 | User | `AUTH_USER` (default `dsh`) |
-| Port | `CADDY_PORT` (default `3080`) |
+| Port | `HTTPS_PORT` (default **8443** → container **443**) |
 
-Prefer **127.0.0.1** for the UI. Plain `http://LAN-IP` can fail with `crypto.randomUUID is not a function` (browser secure-context rule).
+Browser: Advanced → Proceed on the self-signed cert warning.
 
 ## Data Persistence
 
