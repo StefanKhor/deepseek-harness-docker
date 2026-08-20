@@ -53,12 +53,13 @@ server {
     location / {
         proxy_pass http://dsh:3080;
         proxy_http_version 1.1;
+        # Loopback Host + matching Origin (empty Origin string fails upstream trust parse)
         proxy_set_header Host 127.0.0.1;
-        proxy_set_header Origin "";
-        proxy_set_header Referer "";
-        proxy_set_header Sec-Fetch-Site "";
-        proxy_set_header Sec-Fetch-Mode "";
-        proxy_set_header Sec-Fetch-Dest "";
+        proxy_set_header Origin http://127.0.0.1;
+        proxy_set_header Referer http://127.0.0.1/;
+        proxy_set_header Sec-Fetch-Site same-origin;
+        proxy_set_header Sec-Fetch-Mode cors;
+        proxy_set_header Sec-Fetch-Dest empty;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
