@@ -33,4 +33,6 @@ Stop: `docker compose down`
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=StefanKhor/deepseek-harness-docker&type=Date)](https://star-history.com/#StefanKhor/deepseek-harness-docker&Date)
+[View chart](https://star-history.com/#StefanKhor/deepseek-harness-docker&Date) · [embed with token](https://star-history.com/blog/how-to-use-github-star-history#how-to-embed-the-chart-in-your-readme)
+
+GitHub restricted the stargazers API; live README charts need an encrypted token from star-history.com (fine-grained PAT on this repo → Generate embed code → paste below).
