@@ -14,7 +14,7 @@ Unofficial community Docker image for [DeepSeek Harness](https://github.com/deep
 
 ### Docker Compose (recommended)
 
-**Caddy** terminates **HTTPS** with a self-signed cert (`tls internal`). dsh is not published on the host.
+**nginx** terminates **HTTPS** with an auto-generated self-signed RSA cert. dsh is not published on the host.
 
 HTTPS is required so the web UI works on LAN IPs (`crypto.randomUUID` needs a secure context). Accept the browser certificate warning once.
 
@@ -36,16 +36,16 @@ Open **https://127.0.0.1:8443** or **https://\<lan-ip>:8443** (not `http://`).
 | custom | `HTTPS_PORT=9443` | `https://host:9443` |
 
 ```bash
-docker compose down
+docker compose down --remove-orphans
 git pull
 docker compose up -d --force-recreate
-docker compose logs caddy
+docker compose logs nginx
 curl -kI https://127.0.0.1:8443
 ```
 
 Stop: `docker compose down` · wipe data: `docker compose down -v`
 
-### Docker only (no Caddy)
+### Docker only (no nginx)
 
 ```bash
 docker run --rm -p 127.0.0.1:3080:3080 \
@@ -65,7 +65,7 @@ Use **http://127.0.0.1:3080** only (localhost is already a secure context). No L
 | User | `AUTH_USER` (default `dsh`) |
 | Port | `HTTPS_PORT` (default **8443** → container **443**) |
 
-See [`.env.example`](.env.example) for all options.
+See [`.env.example`](.env.example).
 
 ## Data Persistence
 
