@@ -7,3 +7,5 @@ NOTICE
 docker-compose.yml
 .env
 .env.*
+nginx
+

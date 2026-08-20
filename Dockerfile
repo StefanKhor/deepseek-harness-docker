@@ -1,9 +1,6 @@
-# Unofficial community image for DeepSeek Harness (dsh).
+# Unofficial community Docker image for DeepSeek Harness (dsh).
 # Upstream: https://github.com/deepseek-ai/deepseek-harness (MIT)
 # Not affiliated with DeepSeek AI.
-#
-# Installs published npm package (same as npx @deepseek-ai/dsh).
-# Full monorepo clone is for upstream dev, not this image.
 
 ARG NODE_VERSION=22-bookworm-slim
 ARG PNPM_VERSION=10.14.0
@@ -24,11 +21,14 @@ RUN corepack enable \
   && corepack prepare "pnpm@${PNPM_VERSION}" --activate
 
 WORKDIR /opt/dsh
-# hoisted = flat node_modules so Node ESM resolves @deepseek-ai/* correctly
+COPY patches/enable-remote-configuration.mjs /tmp/enable-remote-configuration.mjs
+
 RUN printf 'node-linker=hoisted\n' > .npmrc \
   && pnpm add --prod "@deepseek-ai/dsh@${DSH_VERSION}" \
   && test -f node_modules/@deepseek-ai/dsh/lib/bin.js \
   && test -d node_modules/@deepseek-ai/dsh-app-boot \
+  && node /tmp/enable-remote-configuration.mjs /opt/dsh \
+  && rm -f /tmp/enable-remote-configuration.mjs \
   && printf '%s\n' '#!/bin/sh' 'exec node --expose-internals /opt/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js "$@"' > /usr/local/bin/dsh \
   && chmod +x /usr/local/bin/dsh \
   && dsh --help >/dev/null \
@@ -46,7 +46,9 @@ WORKDIR /home/dsh/workspace
 ENV HOME=/home/dsh \
     DSH_HOME=/home/dsh/.dsh \
     DSH_PORT=3080 \
-    DSH_INTERNAL_PORT=13080
+    DSH_INTERNAL_PORT=13080 \
+    DSH_ALLOW_REMOTE_CONFIGURATION=0 \
+    DSH_TELEMETRY_DISABLED=1
 
 VOLUME ["/home/dsh/.dsh", "/home/dsh/workspace"]
 
@@ -56,5 +58,4 @@ STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.DSH_PORT||3080)+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# dsh binds 127.0.0.1 only (upstream); entrypoint proxies 0.0.0.0:3080 for Docker publish
 ENTRYPOINT ["docker-entrypoint.sh"]

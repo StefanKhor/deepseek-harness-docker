@@ -12,38 +12,49 @@ Unofficial community Docker image for [DeepSeek Harness](https://github.com/deep
 
 ## Installation
 
-### Docker Compose (recommended)
-
-**nginx** terminates **HTTPS** with an auto-generated self-signed RSA cert. dsh is not published on the host.
-
-HTTPS is required so the web UI works on LAN IPs (`crypto.randomUUID` needs a secure context). Accept the browser certificate warning once.
-
 ```bash
 git clone https://github.com/StefanKhor/deepseek-harness-docker.git
 cd deepseek-harness-docker
 cp .env.example .env
-# edit .env — set AUTH_PASSWORD if you want a login prompt
-
+# edit .env (see Access / LAN below)
 docker compose up -d
 ```
 
-Open **https://127.0.0.1:8443** or **https://\<lan-ip>:8443** (not `http://`).
+Open **https://127.0.0.1:8443** (accept self-signed cert once).
 
-| Port | How | URL |
-|---|---|---|
-| **8443** (default) | — | `https://host:8443` |
-| **443** | `HTTPS_PORT=443` in `.env` | `https://host` |
-| custom | `HTTPS_PORT=9443` | `https://host:9443` |
+Stop: `docker compose down` · wipe: `docker compose down -v`
+
+## Access
+
+| | |
+|---|---|
+| Local | **https://**127.0.0.1:8443 |
+| LAN | **https://**\<lan-ip>:8443 + set `DSH_TRUSTED_HOSTS` |
+| Port | `HTTPS_PORT` (default **8443**) |
+| nginx password | `AUTH_PASSWORD` / `AUTH_USER` (optional) |
+
+### LAN / remote (fix HTTP 403)
+
+Upstream blocks `/api/*` unless the browser `Host` is trusted. For LAN:
 
 ```bash
-docker compose down --remove-orphans
-git pull
-docker compose up -d --force-recreate
-docker compose logs nginx
-curl -kI https://127.0.0.1:8443
+# .env
+HTTPS_PORT=8443
+DSH_TRUSTED_HOSTS=10.0.0.6
+DSH_ALLOW_REMOTE_CONFIGURATION=1
+AUTH_PASSWORD=your-secret   # recommended when opening config APIs
 ```
 
-Stop: `docker compose down` · wipe data: `docker compose down -v`
+```bash
+docker compose up -d --force-recreate
+```
+
+| Variable | Meaning |
+|---|---|
+| `DSH_TRUSTED_HOSTS` | Comma-separated `host` or `host:port` (no `https://`) — e.g. `10.0.0.6` |
+| `DSH_ALLOW_REMOTE_CONFIGURATION=1` | Allow Models/settings/credentials over trusted hosts (else loopback-only) |
+
+Without these, the UI may load but `/api/host.listDirectory` or Models settings return **HTTP 403**.
 
 ### Docker only (no nginx)
 
@@ -54,30 +65,18 @@ docker run --rm -p 127.0.0.1:3080:3080 \
   ghcr.io/stefankhor/dsh-docker:latest
 ```
 
-Use **http://127.0.0.1:3080** only (localhost is already a secure context). No LAN.
-
-## Access
-
-| | |
-|---|---|
-| URL | **https://**127.0.0.1:8443 or **https://**\<lan-ip>:8443 |
-| Password | `AUTH_PASSWORD` in `.env` (optional) |
-| User | `AUTH_USER` (default `dsh`) |
-| Port | `HTTPS_PORT` (default **8443** → container **443**) |
-
-See [`.env.example`](.env.example).
+http://127.0.0.1:3080 only.
 
 ## Data Persistence
 
-Upstream stores user data under **`$DSH_HOME`** (default `~/.dsh`).
-
-| Path in container | What | Default on host |
+| Path in container | What | Default |
 |---|---|---|
-| `/home/dsh/.dsh` | settings, API keys, sessions | Docker volume `dsh-home` |
-| `/home/dsh/workspace` | project files the agent edits | current directory (`.`) |
+| `/home/dsh/.dsh` | settings, keys, sessions | volume `dsh-home` |
+| `/home/dsh/workspace` | agent project files | `.` |
 
 ## License
 
-- [MIT](LICENSE)
-- [NOTICE](NOTICE)
+- [MIT](LICENSE) · [NOTICE](NOTICE)
 - [[Upstream] DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness/blob/master/LICENSE)
+
+Remote-config opt-in patch inspired by [AlliotTech/deepseek-harness-docker](https://github.com/AlliotTech/deepseek-harness-docker).

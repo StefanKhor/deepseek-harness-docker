@@ -1,11 +1,9 @@
 # dsh is internal only. nginx terminates HTTPS (self-signed RSA) on the host.
 #
 #   cp .env.example .env
+#   # set DSH_TRUSTED_HOSTS=your-lan-ip   and DSH_ALLOW_REMOTE_CONFIGURATION=1 for LAN UI
 #   docker compose up -d
 #   open https://127.0.0.1:8443  or  https://<lan-ip>:8443
-#
-# Password: AUTH_PASSWORD in .env
-# Port 443: HTTPS_PORT=443 in .env
 
 services:
   dsh:
@@ -15,6 +13,10 @@ services:
     environment:
       DSH_PORT: "3080"
       DSH_HOME: /home/dsh/.dsh
+      DSH_TRUSTED_HOSTS: ${DSH_TRUSTED_HOSTS:-}
+      DSH_ALLOW_REMOTE_CONFIGURATION: ${DSH_ALLOW_REMOTE_CONFIGURATION:-0}
+      DSH_TELEMETRY_DISABLED: ${DSH_TELEMETRY_DISABLED:-1}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
     volumes:
       - ${DSH_HOME_PATH:-dsh-home}:/home/dsh/.dsh
       - ${DSH_WORKSPACE:-.}:/home/dsh/workspace
