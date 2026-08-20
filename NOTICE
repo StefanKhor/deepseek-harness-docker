@@ -1,0 +1,15 @@
+dsh-docker
+Copyright (c) dsh-docker contributors
+
+This project packages DeepSeek Harness for container use. It is an unofficial
+community distribution and is not affiliated with, endorsed by, or sponsored
+by DeepSeek AI.
+
+DeepSeek Harness
+Copyright (c) DeepSeek AI and contributors
+https://github.com/deepseek-ai/deepseek-harness
+Licensed under the MIT License.
+
+The container image also includes third-party packages installed from npm
+as dependencies of @deepseek-ai/dsh. See upstream THIRD_PARTY_NOTICES.md:
+https://github.com/deepseek-ai/deepseek-harness/blob/master/THIRD_PARTY_NOTICES.md

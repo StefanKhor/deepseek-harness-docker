@@ -1,0 +1,139 @@
+name: docker
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - docker-compose.yml
+      - .github/workflows/docker.yml
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - docker-compose.yml
+      - .github/workflows/docker.yml
+  schedule:
+    # npm poll; skip step exits early when v* tag already on GHCR
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+    inputs:
+      dsh_version:
+        description: "npm version of @deepseek-ai/dsh"
+        required: false
+        default: "latest"
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/dsh-docker
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve @deepseek-ai/dsh version
+        id: ver
+        run: |
+          set -euo pipefail
+          REQ="${{ github.event.inputs.dsh_version || 'latest' }}"
+          if [ "$REQ" = "latest" ] || [ -z "$REQ" ]; then
+            VER="$(npm view @deepseek-ai/dsh version)"
+          else
+            VER="$REQ"
+            npm view "@deepseek-ai/dsh@${VER}" version >/dev/null
+          fi
+          echo "version=${VER}" >> "${GITHUB_OUTPUT}"
+          echo "Resolved @deepseek-ai/dsh@${VER}"
+
+      - name: Check existing GHCR tag
+        id: skip
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v${{ steps.ver.outputs.version }}"
+          OWNER="${{ github.repository_owner }}"
+          PKG="dsh-docker"
+          exists=false
+          for path in "users/${OWNER}/packages/container/${PKG}/versions" "orgs/${OWNER}/packages/container/${PKG}/versions"; do
+            if gh api "${path}" --paginate --jq '.[].metadata.container.tags[]' 2>/dev/null | grep -qx "${TAG}"; then
+              exists=true
+              break
+            fi
+          done
+          echo "exists=${exists}" >> "${GITHUB_OUTPUT}"
+          if [ "${exists}" = "true" ]; then
+            echo "Tag ${TAG} already published; skipping build"
+          fi
+
+      - name: Set up QEMU
+        if: steps.skip.outputs.exists != 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        if: steps.skip.outputs.exists != 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: steps.skip.outputs.exists != 'true' && github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        if: steps.skip.outputs.exists != 'true'
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=v${{ steps.ver.outputs.version }}
+            type=sha,prefix=git-,format=short
+          labels: |
+            org.opencontainers.image.title=dsh-docker
+            org.opencontainers.image.description=Unofficial community Docker image for DeepSeek Harness (dsh)
+            org.opencontainers.image.version=${{ steps.ver.outputs.version }}
+            org.opencontainers.image.vendor=community
+            org.opencontainers.image.licenses=MIT
+
+      - name: Build and push
+        id: build
+        if: steps.skip.outputs.exists != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          load: false
+          build-args: |
+            DSH_VERSION=${{ steps.ver.outputs.version }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+      - name: Attest
+        if: steps.skip.outputs.exists != 'true' && github.event_name != 'pull_request' && steps.build.outcome == 'success'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true

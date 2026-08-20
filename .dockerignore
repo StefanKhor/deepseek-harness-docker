@@ -1,0 +1,7 @@
+.git
+.github
+*.md
+LICENSE
+NOTICE
+.gitignore
+docker-compose.yml
