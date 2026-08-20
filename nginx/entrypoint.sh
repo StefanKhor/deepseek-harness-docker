@@ -34,7 +34,11 @@ else
   echo "nginx: no auth (set AUTH_PASSWORD to enable)"
 fi
 
-# quoted heredoc — nginx $vars must not be expanded by the shell
+# Quoted heredoc so nginx $vars are not shell-expanded.
+# Host 127.0.0.1 + strip Origin/Sec-Fetch-Site: dsh only sees loopback
+# (nginx is the only peer on the compose network). Fixes LAN
+# "settings are unavailable" / privileged /api 403 without relying on
+# browser Host/Origin matching the public URL.
 cat >"$CONF" <<'NGEOF'
 server {
     listen 443 ssl;
@@ -49,11 +53,15 @@ server {
     location / {
         proxy_pass http://dsh:3080;
         proxy_http_version 1.1;
-        proxy_set_header Host $http_host;
+        proxy_set_header Host 127.0.0.1;
+        proxy_set_header Origin "";
+        proxy_set_header Referer "";
+        proxy_set_header Sec-Fetch-Site "";
+        proxy_set_header Sec-Fetch-Mode "";
+        proxy_set_header Sec-Fetch-Dest "";
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Forwarded-Host $http_host;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_read_timeout 3600s;
@@ -62,14 +70,12 @@ server {
 }
 NGEOF
 
-# substitute paths / auth (no unquoted $nginx vars)
 sed -i \
   -e "s|CERT_CRT|${CRT}|g" \
   -e "s|CERT_KEY|${KEY}|g" \
   "$CONF"
 
 if [ -s "$AUTH_SNIPPET" ]; then
-  # insert auth lines where INCLUDE_AUTH was
   awk -v authfile="$AUTH_SNIPPET" '
     /INCLUDE_AUTH/ { while ((getline line < authfile) > 0) print "    " line; next }
     { print }
@@ -78,6 +84,6 @@ else
   sed -i '/INCLUDE_AUTH/d' "$CONF"
 fi
 
-echo "nginx: https://0.0.0.0:443 → dsh:3080"
+echo "nginx: https://0.0.0.0:443 → dsh:3080 (Host rewritten to 127.0.0.1)"
 nginx -t
 exec nginx -g "daemon off;"
