@@ -1,16 +1,22 @@
-# dsh listens on host loopback only (127.0.0.1).
-# For LAN/remote, use docker-compose.caddy.yml (Caddy publishes the public port).
+# dsh is internal only. Caddy is the only host-facing port.
+#
+# Local / LAN:
+#   docker compose up -d
+#   http://127.0.0.1:3080  or  http://<lan-ip>:3080
+#
+# Password (browser basic auth):
+#   AUTH_PASSWORD=secret docker compose up -d
+#   # or put AUTH_PASSWORD=secret in a .env file next to this compose file
 #
 # Paths:
-#   DSH_HOME_PATH=./data/dsh-home docker compose up -d
-#   DSH_WORKSPACE=/path/to/project docker compose up -d
+#   DSH_HOME_PATH=./dsh-home DSH_WORKSPACE=/path/to/project docker compose up -d
 
 services:
   dsh:
     image: ghcr.io/stefankhor/dsh-docker:latest
-    ports:
-      # local only — not reachable from LAN
-      - "127.0.0.1:${DSH_PORT:-3080}:3080"
+    # no host ports — only reachable by Caddy on the compose network
+    expose:
+      - "3080"
     environment:
       DSH_PORT: "3080"
       DSH_HOME: /home/dsh/.dsh
@@ -23,6 +29,23 @@ services:
     tmpfs:
       - /tmp
     user: "10001:10001"
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "${CADDY_PORT:-3080}:3080"
+    environment:
+      AUTH_USER: ${AUTH_USER:-dsh}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-}
+      CADDY_LISTEN: "3080"
+    volumes:
+      - ./caddy/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    depends_on:
+      - dsh
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   dsh-home:

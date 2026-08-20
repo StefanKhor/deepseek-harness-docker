@@ -12,7 +12,26 @@ Unofficial community Docker image for [DeepSeek Harness](https://github.com/deep
 
 ## Installation
 
-### 1. Docker (local only)
+### 1. Docker Compose (recommended)
+
+Caddy is always in front. dsh is not published on the host.
+
+```bash
+git clone https://github.com/StefanKhor/deepseek-harness-docker.git
+cd deepseek-harness-docker
+
+# optional password (browser login prompt):
+# echo 'AUTH_PASSWORD=your-secret' > .env
+# optional: AUTH_USER=dsh  CADDY_PORT=3080  DSH_HOME_PATH  DSH_WORKSPACE
+
+docker compose up -d
+```
+
+Open http://127.0.0.1:3080 or http://\<lan-ip>:3080
+
+Stop: `docker compose down` · wipe data: `docker compose down -v`
+
+### 2. Docker only (no Caddy)
 
 ```bash
 docker run --rm -p 127.0.0.1:3080:3080 \
@@ -21,52 +40,25 @@ docker run --rm -p 127.0.0.1:3080:3080 \
   ghcr.io/stefankhor/dsh-docker:latest
 ```
 
-Binds **127.0.0.1 only** — not reachable from LAN. For remote/LAN, use Compose + Caddy below.
-
-### 2. Docker Compose
-
-**Local only** (default):
-
-```bash
-git clone https://github.com/StefanKhor/deepseek-harness-docker.git
-cd deepseek-harness-docker
-# optional: DSH_HOME_PATH / DSH_WORKSPACE / DSH_PORT
-docker compose up -d
-```
-
-Open http://127.0.0.1:3080
-
-**LAN / remote** — Caddy is required (dsh is not published on the host):
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
-```
-
-Open http://\<lan-ip>:3081 or http://127.0.0.1:3081  
-Port: `CADDY_PORT` (default `3081`).
-
-**Password (optional basic auth)** — set when starting Caddy:
-
-```bash
-export AUTH_USER=dsh          # default: dsh
-export AUTH_PASSWORD=secret   # empty = no password
-docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
-```
-
-Browser will prompt for user/password. Leave `AUTH_PASSWORD` unset for open LAN access.
-
-Stop: `docker compose down` · with Caddy:  
-`docker compose -f docker-compose.yml -f docker-compose.caddy.yml down`
+Loopback only — no LAN, no password. Prefer Compose for remote access.
 
 ## Access
 
-| Mode | Command | URL |
-|---|---|---|
-| Local | `docker compose up -d` | http://127.0.0.1:3080 |
-| LAN / remote | `… -f docker-compose.caddy.yml up -d` | http://\<ip>:3081 (via Caddy) |
-| + password | same + `AUTH_PASSWORD=…` | browser login prompt |
+| | |
+|---|---|
+| URL | http://127.0.0.1:3080 or http://\<lan-ip>:3080 |
+| Password | set `AUTH_PASSWORD` in `.env` or the environment, then `docker compose up -d` |
+| User | `AUTH_USER` (default `dsh`) |
+| Port | `CADDY_PORT` (default `3080`) |
 
-Prefer **127.0.0.1** for local HTTP. Plain `http://LAN-IP` can break the UI (`crypto.randomUUID`); use localhost or HTTPS if that happens.
+Check Caddy started with auth:
+
+```bash
+docker compose logs caddy | head
+# expect: caddy: basic_auth enabled user=dsh ...
+```
+
+Then open the URL — browser should ask for user/password.
 
 ## Data Persistence
 
@@ -76,10 +68,6 @@ Upstream stores user data under **`$DSH_HOME`** (default `~/.dsh`).
 |---|---|---|
 | `/home/dsh/.dsh` | settings, API keys, sessions | Docker volume `dsh-home` |
 | `/home/dsh/workspace` | project files the agent edits | current directory (`.`) |
-
-- **Image update / recreate** → data kept if those paths are mounted  
-- **Named volume** (`dsh-home`) → survives container delete; removed only with `docker volume rm` / `compose down -v`  
-- **Bind mount** (`DSH_HOME_PATH=./data/dsh-home`) → files live on your disk; stay even if Docker is uninstalled  
 
 ## License
 
