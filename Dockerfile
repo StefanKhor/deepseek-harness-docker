@@ -29,7 +29,7 @@ RUN printf 'node-linker=hoisted\n' > .npmrc \
   && pnpm add --prod "@deepseek-ai/dsh@${DSH_VERSION}" \
   && test -f node_modules/@deepseek-ai/dsh/lib/bin.js \
   && test -d node_modules/@deepseek-ai/dsh-app-boot \
-  && printf '%s\n' '#!/bin/sh' 'exec node /opt/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js "$@"' > /usr/local/bin/dsh \
+  && printf '%s\n' '#!/bin/sh' 'exec node --expose-internals /opt/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js "$@"' > /usr/local/bin/dsh \
   && chmod +x /usr/local/bin/dsh \
   && dsh --help >/dev/null \
   && groupadd --gid 10001 dsh \
