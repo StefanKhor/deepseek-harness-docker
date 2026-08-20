@@ -1,6 +1,4 @@
-# Optional HTTPS front for dsh (secure context → crypto.randomUUID works on LAN IPs).
-# Self-signed cert (tls internal). Browser will warn once — accept/continue.
-:443 {
-	tls internal
+# Optional reverse proxy in front of dsh (HTTP).
+:3081 {
 	reverse_proxy dsh:3080
 }

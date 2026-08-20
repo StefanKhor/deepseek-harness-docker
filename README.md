@@ -44,19 +44,13 @@ http://127.0.0.1:3080 → **Settings → Models** → API key.
 
 Use **127.0.0.1 / localhost**, not a LAN IP. Plain `http://192.168.x.x` is not a secure context — the UI can fail with `crypto.randomUUID is not a function`.
 
-### 2. Optional HTTPS (Caddy, same install)
-
-For LAN / remote IP access, use the bundled Caddy override (self-signed TLS):
+### 2. Optional Caddy HTTP (same install)
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
 ```
 
-Open **https://127.0.0.1:8443** or **https://\<lan-ip>:8443** (accept the certificate warning once).
-
-| Env | Default | Meaning |
-|---|---|---|
-| `CADDY_HTTPS_PORT` | `8443` | host HTTPS port |
+Open **http://127.0.0.1:3081** (Caddy → dsh). Port: `CADDY_PORT` (default `3081`).
 
 Stop both: `docker compose -f docker-compose.yml -f docker-compose.caddy.yml down`
 

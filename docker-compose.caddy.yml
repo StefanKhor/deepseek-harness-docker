@@ -1,29 +1,22 @@
-# Optional Caddy HTTPS in front of dsh (same install folder).
+# Optional Caddy HTTP reverse proxy in front of dsh (same install folder).
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
 #
-# Open https://127.0.0.1:8443 or https://<lan-ip>:8443 (accept self-signed cert).
-# dsh stays on the internal network only; Caddy publishes HTTPS.
+# Open http://127.0.0.1:3081
+# dsh stays internal; Caddy publishes the host port.
 
 services:
   dsh:
-    # no host publish — only reachable via Caddy on the compose network
     ports: !reset []
 
   caddy:
     image: caddy:2-alpine
     ports:
-      - "${CADDY_HTTPS_PORT:-8443}:443"
+      - "${CADDY_PORT:-3081}:3081"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
     depends_on:
       - dsh
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-
-volumes:
-  caddy-data:
-  caddy-config:
