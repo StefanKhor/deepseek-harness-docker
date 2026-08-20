@@ -1,10 +1,6 @@
 services:
   dsh:
-    image: ghcr.io/${GHCR_OWNER:-local}/dsh-docker:latest
-    build:
-      context: .
-      args:
-        DSH_VERSION: ${DSH_VERSION:-latest}
+    image: ghcr.io/stefankhor/dsh-docker:latest
     ports:
       - "${DSH_PORT:-3080}:3080"
     volumes:
