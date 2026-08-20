@@ -2,8 +2,8 @@
 # Upstream: https://github.com/deepseek-ai/deepseek-harness (MIT)
 # Not affiliated with DeepSeek AI.
 #
-# Installs the published npm CLI (same as `npx @deepseek-ai/dsh`).
-# Full monorepo clone+build is for upstream dev, not this image.
+# Installs published npm package (same as npx @deepseek-ai/dsh).
+# Full monorepo clone is for upstream dev, not this image.
 
 ARG NODE_VERSION=22-bookworm-slim
 ARG PNPM_VERSION=10.14.0
@@ -18,31 +18,31 @@ LABEL org.opencontainers.image.title="dsh-docker" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="community"
 
-ENV NODE_ENV=production \
-    PNPM_HOME=/pnpm \
-    PATH="/pnpm:${PATH}"
+ENV NODE_ENV=production
 
 RUN corepack enable \
   && corepack prepare "pnpm@${PNPM_VERSION}" --activate
 
-# local project tree so ESM can resolve @deepseek-ai/* deps (global install broke)
 WORKDIR /opt/dsh
-RUN pnpm add --prod "@deepseek-ai/dsh@${DSH_VERSION}" \
-  && ln -sf /opt/dsh/node_modules/.bin/dsh /usr/local/bin/dsh \
+# hoisted = flat node_modules so Node ESM resolves @deepseek-ai/* correctly
+RUN printf 'node-linker=hoisted\n' > .npmrc \
+  && pnpm add --prod "@deepseek-ai/dsh@${DSH_VERSION}" \
+  && test -f node_modules/@deepseek-ai/dsh/lib/bin.js \
+  && test -d node_modules/@deepseek-ai/dsh-app-boot \
+  && printf '%s\n' '#!/bin/sh' 'exec node /opt/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js "$@"' > /usr/local/bin/dsh \
+  && chmod +x /usr/local/bin/dsh \
   && dsh --help >/dev/null \
   && groupadd --gid 10001 dsh \
   && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin dsh \
   && mkdir -p /home/dsh/.dsh /home/dsh/workspace \
   && chown -R dsh:dsh /home/dsh /opt/dsh \
-  && rm -rf /root/.local/share/pnpm /pnpm/store
+  && rm -rf /root/.local /tmp/*
 
 USER dsh
 WORKDIR /home/dsh/workspace
-# upstream resolveDshHome(): $DSH_HOME or ~/.dsh
 ENV HOME=/home/dsh \
     DSH_HOME=/home/dsh/.dsh \
-    DSH_PORT=3080 \
-    PATH="/opt/dsh/node_modules/.bin:${PATH}"
+    DSH_PORT=3080
 
 VOLUME ["/home/dsh/.dsh", "/home/dsh/workspace"]
 
@@ -52,6 +52,5 @@ STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.DSH_PORT||3080)+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# Upstream defaults to 127.0.0.1; containers need 0.0.0.0
 ENTRYPOINT ["dsh", "web", "--host", "0.0.0.0", "--no-open"]
 CMD ["--port", "3080"]
