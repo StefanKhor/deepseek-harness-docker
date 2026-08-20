@@ -28,32 +28,30 @@ No built-in login. For remote access, put your own reverse proxy (Caddy, nginx, 
 ```bash
 git clone https://github.com/StefanKhor/deepseek-harness-docker.git
 cd deepseek-harness-docker
+
+######### CUSTOM PATH #########
+# export DSH_HOME_PATH=./dsh-home
+# export DSH_WORKSPACE=/path/to/your/project
+# export DSH_PORT=3080
 docker compose up -d
 ```
 
 Stop and keep data: `docker compose down`.
 To wipe data: `docker compose down -v`.
 
-## Customization
+## Access
 
-### 1. Custom Path
+### 1. Local Only
 
-```bash
-export DSH_HOME_PATH=./dsh-home
-export DSH_WORKSPACE=/path/to/your/project
-export DSH_PORT=3080
-docker compose up -d
-```
+http://127.0.0.1:3080
 
 ### 2. Auth
 
 This repo ships dsh only. For a password gate, put a reverse proxy in front of port 3080 (Caddy, nginx, Traefik, etc.).
 
-Example: keep dsh on **3080** (upstream default); put Caddy on **3081** with basic auth.
+Keep dsh on **3080** (upstream default); put Caddy on **3081** with basic auth.
 
 ```bash
-# dsh stays :3080 (bind localhost if only Caddy should reach it)
-# compose ports: "127.0.0.1:3080:3080"
 caddy hash-password   # paste hash below
 ```
 
@@ -67,10 +65,6 @@ caddy hash-password   # paste hash below
 ```
 
 Open http://127.0.0.1:3081 (auth) → proxies to dsh on 3080.
-
-## Access
-
-http://127.0.0.1:3080 or http://\<ip>:3080
 
 ## Data Persistence
 
