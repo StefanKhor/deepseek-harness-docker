@@ -19,45 +19,64 @@ if [ ! -f "$CRT" ] || [ ! -f "$KEY" ]; then
     -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
 fi
 
-AUTH_BLOCK=""
+AUTH_SNIPPET=/tmp/nginx-auth.conf
+: >"$AUTH_SNIPPET"
 if [ -n "${AUTH_PASSWORD:-}" ]; then
   USER="${AUTH_USER:-dsh}"
   htpasswd -nbB "$USER" "$AUTH_PASSWORD" >"$HTPASSWD"
-  AUTH_BLOCK="auth_basic \"dsh\";
-    auth_basic_user_file $HTPASSWD;"
+  printf '%s\n' \
+    'auth_basic "dsh";' \
+    "auth_basic_user_file ${HTPASSWD};" \
+    >"$AUTH_SNIPPET"
   echo "nginx: basic auth enabled user=${USER}"
 else
   rm -f "$HTPASSWD"
   echo "nginx: no auth (set AUTH_PASSWORD to enable)"
 fi
 
-cat >"$CONF" <<EOF
+# quoted heredoc — nginx $vars must not be expanded by the shell
+cat >"$CONF" <<'NGEOF'
 server {
     listen 443 ssl;
     server_name _;
 
-    ssl_certificate     $CRT;
-    ssl_certificate_key $KEY;
+    ssl_certificate     CERT_CRT;
+    ssl_certificate_key CERT_KEY;
     ssl_protocols       TLSv1.2 TLSv1.3;
 
-    $AUTH_BLOCK
+    INCLUDE_AUTH
 
     location / {
         proxy_pass http://dsh:3080;
         proxy_http_version 1.1;
-        # $http_host keeps port (e.g. 10.0.0.6:8443) so Origin matches Host (upstream trust fence)
-        proxy_set_header Host \$http_host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Forwarded-Host \$http_host;
-        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
     }
 }
-EOF
+NGEOF
+
+# substitute paths / auth (no unquoted $nginx vars)
+sed -i \
+  -e "s|CERT_CRT|${CRT}|g" \
+  -e "s|CERT_KEY|${KEY}|g" \
+  "$CONF"
+
+if [ -s "$AUTH_SNIPPET" ]; then
+  # insert auth lines where INCLUDE_AUTH was
+  awk -v authfile="$AUTH_SNIPPET" '
+    /INCLUDE_AUTH/ { while ((getline line < authfile) > 0) print "    " line; next }
+    { print }
+  ' "$CONF" >"${CONF}.tmp" && mv "${CONF}.tmp" "$CONF"
+else
+  sed -i '/INCLUDE_AUTH/d' "$CONF"
+fi
 
 echo "nginx: https://0.0.0.0:443 → dsh:3080"
 nginx -t
