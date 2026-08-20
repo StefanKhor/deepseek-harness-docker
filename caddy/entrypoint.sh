@@ -2,7 +2,8 @@
 set -eu
 
 USER="${AUTH_USER:-dsh}"
-PORT="${CADDY_LISTEN:-3080}"
+# HTTPS required for browser secure context (crypto.randomUUID) on LAN IPs
+PORT="${CADDY_LISTEN:-443}"
 CFG=/etc/caddy/Caddyfile
 
 mkdir -p /etc/caddy
@@ -11,20 +12,22 @@ if [ -n "${AUTH_PASSWORD:-}" ]; then
   HASH=$(caddy hash-password --plaintext "$AUTH_PASSWORD")
   cat >"$CFG" <<EOF
 :${PORT} {
+	tls internal
 	basic_auth {
 		${USER} ${HASH}
 	}
 	reverse_proxy dsh:3080
 }
 EOF
-  echo "caddy: basic_auth enabled user=${USER} port=${PORT}"
+  echo "caddy: https + basic_auth user=${USER} :${PORT}"
 else
   cat >"$CFG" <<EOF
 :${PORT} {
+	tls internal
 	reverse_proxy dsh:3080
 }
 EOF
-  echo "caddy: no auth (set AUTH_PASSWORD to enable) port=${PORT}"
+  echo "caddy: https only (set AUTH_PASSWORD for login) :${PORT}"
 fi
 
 exec caddy run --config "$CFG" --adapter caddyfile

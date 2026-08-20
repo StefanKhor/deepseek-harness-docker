@@ -12,26 +12,27 @@ Unofficial community Docker image for [DeepSeek Harness](https://github.com/deep
 
 ## Installation
 
-### 1. Docker Compose (recommended)
+### Docker Compose (recommended)
 
-Caddy is always in front. dsh is not published on the host.
+Caddy (HTTPS) is always in front. dsh is not published on the host.
+
+HTTPS is required so the web UI works on LAN IPs (`crypto.randomUUID` needs a secure context). Cert is self-signed (`tls internal`) — accept the browser warning once.
 
 ```bash
 git clone https://github.com/StefanKhor/deepseek-harness-docker.git
 cd deepseek-harness-docker
 
-# optional password (browser login prompt):
+# optional password:
 # echo 'AUTH_PASSWORD=your-secret' > .env
-# optional: AUTH_USER=dsh  CADDY_PORT=3080  DSH_HOME_PATH  DSH_WORKSPACE
 
 docker compose up -d
 ```
 
-Open http://127.0.0.1:3080 or http://\<lan-ip>:3080
+Open **https://127.0.0.1:3080** or **https://\<lan-ip>:3080** (not `http://`).
 
 Stop: `docker compose down` · wipe data: `docker compose down -v`
 
-### 2. Docker only (no Caddy)
+### Docker only (no Caddy)
 
 ```bash
 docker run --rm -p 127.0.0.1:3080:3080 \
@@ -40,25 +41,21 @@ docker run --rm -p 127.0.0.1:3080:3080 \
   ghcr.io/stefankhor/dsh-docker:latest
 ```
 
-Loopback only — no LAN, no password. Prefer Compose for remote access.
+Use **http://127.0.0.1:3080** only (localhost is already a secure context). No LAN.
 
 ## Access
 
 | | |
 |---|---|
-| URL | http://127.0.0.1:3080 or http://\<lan-ip>:3080 |
-| Password | set `AUTH_PASSWORD` in `.env` or the environment, then `docker compose up -d` |
+| URL | **https://**127.0.0.1:3080 or **https://**\<lan-ip>:3080 |
+| Password | `AUTH_PASSWORD` in `.env` (optional) |
 | User | `AUTH_USER` (default `dsh`) |
-| Port | `CADDY_PORT` (default `3080`) |
-
-Check Caddy started with auth:
+| Port | `CADDY_PORT` (default `3080` → container 443) |
 
 ```bash
 docker compose logs caddy | head
-# expect: caddy: basic_auth enabled user=dsh ...
+# https + basic_auth ...  OR  https only ...
 ```
-
-Then open the URL — browser should ask for user/password.
 
 ## Data Persistence
 
