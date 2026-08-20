@@ -1,31 +1,40 @@
 # Unofficial community image for DeepSeek Harness (dsh).
 # Upstream: https://github.com/deepseek-ai/deepseek-harness (MIT)
 # Not affiliated with DeepSeek AI.
+#
+# Installs the published npm CLI (same as `npx @deepseek-ai/dsh`).
+# Full monorepo clone+build is for upstream dev, not this image.
 
 ARG NODE_VERSION=22-bookworm-slim
+ARG PNPM_VERSION=10.14.0
 
 FROM node:${NODE_VERSION}
 
 ARG DSH_VERSION=latest
+ARG PNPM_VERSION
+
 LABEL org.opencontainers.image.title="dsh-docker" \
       org.opencontainers.image.description="Unofficial community Docker image for DeepSeek Harness (dsh). Not affiliated with DeepSeek AI." \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="community"
 
-ENV npm_config_update_notifier=false \
-    npm_config_fund=false \
-    npm_config_audit=false \
-    NODE_ENV=production
+ENV NODE_ENV=production \
+    PNPM_HOME=/pnpm \
+    PATH="/pnpm:${PATH}"
 
-# local install keeps the full dependency tree (global + multi-stage copy broke ESM resolve)
+RUN corepack enable \
+  && corepack prepare "pnpm@${PNPM_VERSION}" --activate
+
+# local project tree so ESM can resolve @deepseek-ai/* deps (global install broke)
 WORKDIR /opt/dsh
-RUN npm install --omit=dev "@deepseek-ai/dsh@${DSH_VERSION}" \
-  && npm cache clean --force \
+RUN pnpm add --prod "@deepseek-ai/dsh@${DSH_VERSION}" \
   && ln -sf /opt/dsh/node_modules/.bin/dsh /usr/local/bin/dsh \
+  && dsh --help >/dev/null \
   && groupadd --gid 10001 dsh \
   && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin dsh \
   && mkdir -p /home/dsh/.dsh /home/dsh/workspace \
-  && chown -R dsh:dsh /home/dsh /opt/dsh
+  && chown -R dsh:dsh /home/dsh /opt/dsh \
+  && rm -rf /root/.local/share/pnpm /pnpm/store
 
 USER dsh
 WORKDIR /home/dsh/workspace
