@@ -17,6 +17,7 @@ git clone https://github.com/StefanKhor/deepseek-harness-docker.git
 cd deepseek-harness-docker
 cp .env.example .env
 # edit .env (see Access / LAN below)
+mkdir -p workspace
 docker compose up -d
 ```
 
@@ -33,16 +34,24 @@ Stop: `docker compose down` · wipe: `docker compose down -v`
 | Port | `HTTPS_PORT` (default **8443**) |
 | nginx password | `AUTH_PASSWORD` / `AUTH_USER` (optional) |
 
+### Compose `.env` vs workspace
+
+| File | Who reads it |
+|---|---|
+| compose repo `.env` | **Docker Compose only** → injects into container env |
+| `/home/dsh/workspace/.env` | **dsh** (agent project) — must **not** contain launch-only vars |
+
+Upstream rejects launch-only vars in a workspace `.env`, e.g. `DSH_ALLOW_REMOTE_CONFIGURATION`, `DSH_TRUSTED_HOSTS`.  
+Default workspace is **`./workspace`**, not the compose repo, so this does not happen.
+
 ### LAN / remote (fix HTTP 403)
 
-Upstream blocks `/api/*` unless the browser `Host` is trusted. For LAN:
-
 ```bash
-# .env
+# compose .env (NOT workspace/.env)
 HTTPS_PORT=8443
 DSH_TRUSTED_HOSTS=10.0.0.6
 DSH_ALLOW_REMOTE_CONFIGURATION=1
-AUTH_PASSWORD=your-secret   # recommended when opening config APIs
+AUTH_PASSWORD=your-secret
 ```
 
 ```bash
@@ -51,28 +60,24 @@ docker compose up -d --force-recreate
 
 | Variable | Meaning |
 |---|---|
-| `DSH_TRUSTED_HOSTS` | Comma-separated `host` or `host:port` (no `https://`) — e.g. `10.0.0.6` |
-| `DSH_ALLOW_REMOTE_CONFIGURATION=1` | Allow Models/settings/credentials over trusted hosts (else loopback-only) |
-
-Without these, the UI may load but `/api/host.listDirectory` or Models settings return **HTTP 403**.
+| `DSH_TRUSTED_HOSTS` | Browser host, e.g. `10.0.0.6` (no `https://`) |
+| `DSH_ALLOW_REMOTE_CONFIGURATION=1` | Allow Models/settings on trusted hosts |
 
 ### Docker only (no nginx)
 
 ```bash
 docker run --rm -p 127.0.0.1:3080:3080 \
   -v dsh-home:/home/dsh/.dsh \
-  -v "$PWD:/home/dsh/workspace" \
+  -v "$PWD/workspace:/home/dsh/workspace" \
   ghcr.io/stefankhor/dsh-docker:latest
 ```
 
-http://127.0.0.1:3080 only.
-
 ## Data Persistence
 
-| Path in container | What | Default |
+| Path in container | What | Default on host |
 |---|---|---|
 | `/home/dsh/.dsh` | settings, keys, sessions | volume `dsh-home` |
-| `/home/dsh/workspace` | agent project files | `.` |
+| `/home/dsh/workspace` | agent project files | `./workspace` |
 
 ## License
 

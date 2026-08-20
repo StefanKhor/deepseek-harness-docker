@@ -4,6 +4,9 @@
 #   # set DSH_TRUSTED_HOSTS=your-lan-ip   and DSH_ALLOW_REMOTE_CONFIGURATION=1 for LAN UI
 #   docker compose up -d
 #   open https://127.0.0.1:8443  or  https://<lan-ip>:8443
+#
+# Compose .env is ONLY for Docker Compose (not mounted into dsh).
+# Do not put DSH_ALLOW_REMOTE_CONFIGURATION / DSH_TRUSTED_HOSTS in the agent workspace.
 
 services:
   dsh:
@@ -13,13 +16,15 @@ services:
     environment:
       DSH_PORT: "3080"
       DSH_HOME: /home/dsh/.dsh
+      # launch-only: must come from compose environment, never from workspace/.env
       DSH_TRUSTED_HOSTS: ${DSH_TRUSTED_HOSTS:-}
       DSH_ALLOW_REMOTE_CONFIGURATION: ${DSH_ALLOW_REMOTE_CONFIGURATION:-0}
       DSH_TELEMETRY_DISABLED: ${DSH_TELEMETRY_DISABLED:-1}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
     volumes:
       - ${DSH_HOME_PATH:-dsh-home}:/home/dsh/.dsh
-      - ${DSH_WORKSPACE:-.}:/home/dsh/workspace
+      # default ./workspace — NOT the compose repo (avoids mounting compose .env into dsh)
+      - ${DSH_WORKSPACE:-./workspace}:/home/dsh/workspace
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
