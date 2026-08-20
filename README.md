@@ -21,6 +21,8 @@ docker run --rm -p 3080:3080 \
   ghcr.io/stefankhor/dsh-docker:latest
 ```
 
+No built-in login. For remote access, put your own reverse proxy (Caddy, nginx, Traefik, etc.) with auth in front of port 3080.
+
 ### 2. Docker Compose
 
 ```bash
@@ -40,26 +42,11 @@ export DSH_PORT=3080
 docker compose up -d
 ```
 
+Same as Docker: this stack is dsh only. Add Caddy/nginx/auth yourself if you need a password gate.
+
 ## Access
 
 Open http://127.0.0.1:3080 → **Settings → Models** → add API key.
-
-### Optional basic auth (Compose)
-
-Same idea as OpenCode’s `OPENCODE_SERVER_PASSWORD`: browser asks for user/password. **Off by default.**
-
-```bash
-export AUTH_USER=dsh          # optional, default dsh
-export AUTH_PASSWORD=secret   # set to enable
-docker compose up -d
-```
-
-| `AUTH_PASSWORD` | Behavior |
-|---|---|
-| unset / empty | no login (direct UI) |
-| set | HTTP basic auth via Caddy in front of dsh |
-
-Plain `docker run` has no auth (localhost only recommended).
 
 ## Data Persistence
 

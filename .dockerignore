@@ -7,4 +7,3 @@ NOTICE
 docker-compose.yml
 .env
 .env.*
-caddy
