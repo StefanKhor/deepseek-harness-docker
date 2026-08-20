@@ -28,7 +28,18 @@ cd deepseek-harness-docker
 docker compose up -d
 ```
 
-Open **https://127.0.0.1:3080** or **https://\<lan-ip>:3080** (not `http://`).
+Open **https://127.0.0.1:3080** or **https://\<lan-ip>:3080** (must be `https://`, not `http://`).
+
+Accept the self-signed cert warning (Advanced → Proceed).  
+`ERR_SSL_PROTOCOL_ERROR` usually means an old HTTP container is still on 3080 — recreate:
+
+```bash
+docker compose down
+git pull
+docker compose up -d --force-recreate
+docker compose logs caddy
+# should show: caddy: https://0.0.0.0:3080 ...
+```
 
 Stop: `docker compose down` · wipe data: `docker compose down -v`
 
