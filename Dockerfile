@@ -28,16 +28,22 @@ RUN rm -rf /usr/local/lib/node_modules/npm \
            /usr/local/bin/npx \
            /usr/local/bin/corepack \
   && groupadd --gid 10001 dsh \
-  && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin dsh
+  && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin dsh \
+  && mkdir -p /home/dsh/.dsh /home/dsh/workspace \
+  && chown -R dsh:dsh /home/dsh
 
 COPY --from=build /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=build /usr/local/bin/dsh /usr/local/bin/dsh
 
 USER dsh
 WORKDIR /home/dsh/workspace
+# upstream resolveDshHome(): $DSH_HOME or ~/.dsh
 ENV HOME=/home/dsh \
+    DSH_HOME=/home/dsh/.dsh \
     NODE_ENV=production \
     DSH_PORT=3080
+
+VOLUME ["/home/dsh/.dsh", "/home/dsh/workspace"]
 
 EXPOSE 3080
 STOPSIGNAL SIGTERM
