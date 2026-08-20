@@ -21,8 +21,6 @@ docker run --rm -p 3080:3080 \
   ghcr.io/stefankhor/dsh-docker:latest
 ```
 
-Open http://127.0.0.1:3080 → **Settings → Models** → add API key.
-
 ### 2. Docker Compose
 
 ```bash
@@ -42,6 +40,10 @@ export DSH_PORT=3080
 docker compose up -d
 ```
 
+## Access
+
+Open http://127.0.0.1:3080 → **Settings → Models** → add API key.
+
 ## Data Persistence
 
 Upstream stores user data under **`$DSH_HOME`** (default `~/.dsh`).
@@ -57,4 +59,6 @@ Upstream stores user data under **`$DSH_HOME`** (default `~/.dsh`).
 
 ## License
 
-[MIT](LICENSE) · upstream [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness/blob/master/LICENSE) · [NOTICE](NOTICE)
+- [MIT](LICENSE)
+- [NOTICE](NOTICE)
+- [[Upstream] DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness/blob/master/LICENSE)
