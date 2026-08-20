@@ -44,6 +44,23 @@ docker compose up -d
 
 Open http://127.0.0.1:3080 → **Settings → Models** → add API key.
 
+### Optional basic auth (Compose)
+
+Same idea as OpenCode’s `OPENCODE_SERVER_PASSWORD`: browser asks for user/password. **Off by default.**
+
+```bash
+export AUTH_USER=dsh          # optional, default dsh
+export AUTH_PASSWORD=secret   # set to enable
+docker compose up -d
+```
+
+| `AUTH_PASSWORD` | Behavior |
+|---|---|
+| unset / empty | no login (direct UI) |
+| set | HTTP basic auth via Caddy in front of dsh |
+
+Plain `docker run` has no auth (localhost only recommended).
+
 ## Data Persistence
 
 Upstream stores user data under **`$DSH_HOME`** (default `~/.dsh`).

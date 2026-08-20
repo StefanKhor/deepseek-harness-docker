@@ -2,18 +2,20 @@
 #   DSH_HOME     → settings, API keys, sessions  (default: Docker volume "dsh-home")
 #   workspace    → project files the agent edits (default: current directory)
 #
-# Bind to a host path instead of a named volume (survives Docker uninstall better):
-#   DSH_HOME_PATH=./data/dsh-home docker compose up -d
-#   DSH_WORKSPACE=/path/to/project docker compose up -d
+# Optional basic auth (OpenCode-style browser login):
+#   AUTH_PASSWORD=secret docker compose up -d
+#   AUTH_USER=dsh          # optional, default dsh
+#
+# Bind host paths:
+#   DSH_HOME_PATH=./data/dsh-home DSH_WORKSPACE=/path/to/project docker compose up -d
 
 services:
   dsh:
     image: ghcr.io/stefankhor/dsh-docker:latest
-    ports:
-      - "${DSH_PORT:-3080}:3080"
+    expose:
+      - "3080"
     environment:
       DSH_PORT: "3080"
-      # upstream: resolveDshHome() → $DSH_HOME or ~/.dsh
       DSH_HOME: /home/dsh/.dsh
     volumes:
       - ${DSH_HOME_PATH:-dsh-home}:/home/dsh/.dsh
@@ -24,6 +26,23 @@ services:
     tmpfs:
       - /tmp
     user: "10001:10001"
+
+  # optional gate: no AUTH_PASSWORD → plain reverse proxy; set AUTH_PASSWORD → browser basic auth
+  proxy:
+    image: caddy:2-alpine
+    ports:
+      - "${DSH_PORT:-3080}:3080"
+    environment:
+      AUTH_USER: ${AUTH_USER:-dsh}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-}
+    volumes:
+      - ./caddy/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    depends_on:
+      - dsh
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   dsh-home:

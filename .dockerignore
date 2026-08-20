@@ -5,3 +5,6 @@ LICENSE
 NOTICE
 .gitignore
 docker-compose.yml
+.env
+.env.*
+caddy
