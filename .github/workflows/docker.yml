@@ -29,10 +29,12 @@ permissions:
   packages: write
   id-token: write
   attestations: write
+  actions: write
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/dsh-docker
+  # GHCR requires lowercase owner
+  IMAGE_NAME: stefankhor/dsh-docker
 
 jobs:
   build:
@@ -40,7 +42,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Resolve @deepseek-ai/dsh version
         id: ver
@@ -132,7 +134,7 @@ jobs:
 
       - name: Attest
         if: steps.skip.outputs.exists != 'true' && github.event_name != 'pull_request' && steps.build.outcome == 'success'
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v3
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
