@@ -1,12 +1,7 @@
-# dsh is internal only. Caddy terminates HTTPS on the host.
+# dsh is internal only. Caddy is the host-facing HTTP front on 3080.
 #
 #   docker compose up -d
-#   open https://127.0.0.1:8443  or  https://<lan-ip>:8443
-#   accept the self-signed certificate warning once
-#
-# Standard HTTPS port (needs free 443 on host):
-#   CADDY_PORT=443 docker compose up -d
-#   open https://127.0.0.1   or  https://<lan-ip>
+#   open http://127.0.0.1:3080
 #
 # Password:
 #   echo 'AUTH_PASSWORD=secret' > .env && docker compose up -d
@@ -35,16 +30,13 @@ services:
   caddy:
     image: caddy:2-alpine
     ports:
-      # host HTTPS port → container 443 (Caddy TLS)
-      - "${CADDY_PORT:-8443}:443"
+      - "${CADDY_PORT:-3080}:3080"
     environment:
       AUTH_USER: ${AUTH_USER:-dsh}
       AUTH_PASSWORD: ${AUTH_PASSWORD:-}
-      CADDY_LISTEN: "443"
+      CADDY_LISTEN: "3080"
     volumes:
       - ./caddy/entrypoint.sh:/entrypoint.sh:ro
-      - caddy-data:/data
-      - caddy-config:/config
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     depends_on:
       - dsh
@@ -54,5 +46,3 @@ services:
 
 volumes:
   dsh-home:
-  caddy-data:
-  caddy-config:

@@ -14,9 +14,7 @@ Unofficial community Docker image for [DeepSeek Harness](https://github.com/deep
 
 ### Docker Compose (recommended)
 
-Caddy (HTTPS) is always in front. dsh is not published on the host.
-
-HTTPS is required so the web UI works on LAN IPs (`crypto.randomUUID` needs a secure context). Cert is self-signed (`tls internal`) — accept the browser warning once.
+Caddy is always in front (HTTP). dsh is not published on the host.
 
 ```bash
 git clone https://github.com/StefanKhor/deepseek-harness-docker.git
@@ -28,29 +26,7 @@ cd deepseek-harness-docker
 docker compose up -d
 ```
 
-Open **https://127.0.0.1:8443** or **https://\<lan-ip>:8443**
-
-| Port choice | How | URL |
-|---|---|---|
-| **8443** (default) | nothing extra | `https://host:8443` |
-| **443** | `CADDY_PORT=443` in `.env` | `https://host` (no port) |
-| custom | `CADDY_PORT=9443` | `https://host:9443` |
-
-```bash
-# use standard HTTPS port instead of 8443
-echo 'CADDY_PORT=443' >> .env
-docker compose up -d --force-recreate
-```
-
-Accept the self-signed cert warning (Advanced → Proceed).
-
-```bash
-docker compose down
-git pull
-docker compose up -d --force-recreate
-docker compose logs caddy
-# should show: caddy: https://0.0.0.0:443 ...
-```
+Open **http://127.0.0.1:3080**
 
 Stop: `docker compose down` · wipe data: `docker compose down -v`
 
@@ -63,21 +39,16 @@ docker run --rm -p 127.0.0.1:3080:3080 \
   ghcr.io/stefankhor/dsh-docker:latest
 ```
 
-Use **http://127.0.0.1:3080** only (localhost is already a secure context). No LAN.
-
 ## Access
 
 | | |
 |---|---|
-| URL | **https://**127.0.0.1:8443 or **https://**\<lan-ip>:8443 |
+| URL | **http://**127.0.0.1:3080 |
 | Password | `AUTH_PASSWORD` in `.env` (optional) |
 | User | `AUTH_USER` (default `dsh`) |
-| Port | `CADDY_PORT` (default **8443** → container **443**) |
+| Port | `CADDY_PORT` (default `3080`) |
 
-```bash
-docker compose logs caddy | head
-curl -kI https://127.0.0.1:8443
-```
+Prefer **127.0.0.1** for the UI. Plain `http://LAN-IP` can fail with `crypto.randomUUID is not a function` (browser secure-context rule).
 
 ## Data Persistence
 
