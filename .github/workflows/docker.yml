@@ -56,12 +56,13 @@ jobs:
 
       - name: Check existing GHCR tag
         id: skip
-        if: github.event_name == 'schedule'
+        # schedule + manual: skip rebuild when this npm version is already on GHCR
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG="v${{ steps.ver.outputs.version }}"
+          TAG="${{ steps.ver.outputs.version }}"
           OWNER="${{ github.repository_owner }}"
           PKG="dsh-docker"
           exists=false
@@ -73,7 +74,9 @@ jobs:
           done
           echo "exists=${exists}" >> "${GITHUB_OUTPUT}"
           if [ "${exists}" = "true" ]; then
-            echo "Tag ${TAG} already published; skipping build"
+            echo "Tag ${TAG} already on GHCR — skip rebuild"
+          else
+            echo "Tag ${TAG} not found — will build"
           fi
 
       - name: Set up QEMU
