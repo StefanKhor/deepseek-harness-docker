@@ -49,18 +49,21 @@ Default workspace is **`./workspace`**, not the compose repo, so this does not h
 ```bash
 # compose .env (NOT workspace/.env)
 HTTPS_PORT=8443
-DSH_TRUSTED_HOSTS=10.0.0.6
+# must match browser Host (include port if not 443)
+DSH_TRUSTED_HOSTS=10.0.0.6:8443
 DSH_ALLOW_REMOTE_CONFIGURATION=1
 AUTH_PASSWORD=your-secret
 ```
 
 ```bash
 docker compose up -d --force-recreate
+# only nginx config changed? still:
+docker compose up -d --force-recreate nginx
 ```
 
 | Variable | Meaning |
 |---|---|
-| `DSH_TRUSTED_HOSTS` | Browser host, e.g. `10.0.0.6` (no `https://`) |
+| `DSH_TRUSTED_HOSTS` | Browser `host:port`, e.g. `10.0.0.6:8443` (no `https://`) |
 | `DSH_ALLOW_REMOTE_CONFIGURATION=1` | Allow Models/settings on trusted hosts |
 
 ### Docker only (no nginx)
