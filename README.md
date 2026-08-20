@@ -4,7 +4,7 @@ Unofficial community Docker image for [DeepSeek Harness](https://github.com/deep
 
 > Not affiliated with DeepSeek AI.
 
-**Image:** `ghcr.io/stefankhor/dsh-docker` · **Tags:** `latest`, `vX.Y.Z` · **Arch:** `amd64`, `arm64`
+**Image:** `ghcr.io/stefankhor/dsh-docker` · **Tags:** `latest`, `0.1.0-rc.7` (matches npm `@deepseek-ai/dsh`) · **Arch:** `amd64`, `arm64`
 
 ## Docker
 
@@ -34,5 +34,3 @@ Stop: `docker compose down`
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/chart?repos=StefanKhor/deepseek-harness-docker&type=date&legend=top-left&sealed_token=IuCIRdSy043MshYtEDQ_99nKpnMUrsFA0LBlULhSSH6rdguDgy5mpJjNuqTKXkGxBS9jJ4wturc0GTcxhfu7tG_ENC0V5sAnaI-80m6009ICuHjxndbFKA)](https://www.star-history.com/?repos=StefanKhor%2Fdeepseek-harness-docker&type=date&legend=top-left)
-
-GitHub restricted the stargazers API; live README charts need an encrypted token from star-history.com (fine-grained PAT on this repo → Generate embed code → paste below).
