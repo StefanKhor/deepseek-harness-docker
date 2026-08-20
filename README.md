@@ -49,21 +49,24 @@ docker compose up -d
 
 This repo ships dsh only. For a password gate, put a reverse proxy in front of port 3080 (Caddy, nginx, Traefik, etc.).
 
-Example: publish dsh on `127.0.0.1:3081` only, Caddy on `3080` with basic auth.
+Example: keep dsh on **3080** (upstream default); put Caddy on **3081** with basic auth.
 
 ```bash
-# compose: ports → "127.0.0.1:3081:3080"
+# dsh stays :3080 (bind localhost if only Caddy should reach it)
+# compose ports: "127.0.0.1:3080:3080"
 caddy hash-password   # paste hash below
 ```
 
 ```caddyfile
-:3080 {
+:3081 {
 	basicauth {
 		dsh $2a$14$YOUR_BCRYPT_HASH
 	}
-	reverse_proxy 127.0.0.1:3081
+	reverse_proxy 127.0.0.1:3080
 }
 ```
+
+Open http://127.0.0.1:3081 (auth) → proxies to dsh on 3080.
 
 ## Access
 
