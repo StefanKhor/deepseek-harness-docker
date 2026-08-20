@@ -31,22 +31,40 @@ cd deepseek-harness-docker
 docker compose up -d
 ```
 
-Stop: `docker compose down` (keeps data). Wipe data: `docker compose down -v`.
+Stop and keep data: `docker compose down`.
+To wipe data: `docker compose down -v`.
 
-Custom paths:
+## Customization
+
+### 1. Custom Path
 
 ```bash
-export DSH_HOME_PATH=./data/dsh-home
+export DSH_HOME_PATH=./dsh-home
 export DSH_WORKSPACE=/path/to/your/project
 export DSH_PORT=3080
 docker compose up -d
 ```
 
-Same as Docker: this stack is dsh only. Add Caddy/nginx/auth yourself if you need a password gate.
+### 2. Auth
+
+This repo ships dsh only. For a password gate, put a reverse proxy in front of port 3080 (Caddy, nginx, Traefik, etc.).
+
+Example Caddyfile (browser basic auth → dsh):
+
+```caddyfile
+:3080 {
+	basicauth {
+		dsh $2a$14$YOUR_BCRYPT_HASH
+	}
+	reverse_proxy 127.0.0.1:3080
+}
+```
+
+Generate a hash: `caddy hash-password`. Run dsh on another host port (e.g. `3081`) and point `reverse_proxy` at it, or run Caddy as a separate container on the same Docker network.
 
 ## Access
 
-Open http://127.0.0.1:3080 → **Settings → Models** → add API key.
+http://127.0.0.1:3080 or http://\<ip>:3080
 
 ## Data Persistence
 
