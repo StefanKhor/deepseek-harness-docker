@@ -44,27 +44,22 @@ Stop: `docker compose down` · wipe: `docker compose down -v`
 Upstream rejects launch-only vars in a workspace `.env`, e.g. `DSH_ALLOW_REMOTE_CONFIGURATION`, `DSH_TRUSTED_HOSTS`.  
 Default workspace is **`./workspace`**, not the compose repo, so this does not happen.
 
-### LAN / remote (fix HTTP 403)
+### LAN / remote
+
+nginx rewrites API traffic as loopback to dsh (dsh is not on the public network).  
+Use **HTTPS** + optional `AUTH_PASSWORD` for access control.
 
 ```bash
 # compose .env (NOT workspace/.env)
 HTTPS_PORT=8443
-# must match browser Host (include port if not 443)
-DSH_TRUSTED_HOSTS=10.0.0.6:8443
-DSH_ALLOW_REMOTE_CONFIGURATION=1
 AUTH_PASSWORD=your-secret
 ```
 
 ```bash
 docker compose up -d --force-recreate
-# only nginx config changed? still:
-docker compose up -d --force-recreate nginx
 ```
 
-| Variable | Meaning |
-|---|---|
-| `DSH_TRUSTED_HOSTS` | Browser `host:port`, e.g. `10.0.0.6:8443` (no `https://`) |
-| `DSH_ALLOW_REMOTE_CONFIGURATION=1` | Allow Models/settings on trusted hosts |
+Open **https://\<lan-ip>:8443** (accept cert; login if password set).
 
 ### Docker only (no nginx)
 
