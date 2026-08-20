@@ -4,44 +4,36 @@
 
 ARG NODE_VERSION=22-bookworm-slim
 
-FROM node:${NODE_VERSION} AS build
-ARG DSH_VERSION=latest
-ENV npm_config_update_notifier=false \
-    npm_config_fund=false \
-    npm_config_audit=false
-RUN npm install -g --omit=dev "@deepseek-ai/dsh@${DSH_VERSION}" \
-  && npm cache clean --force \
-  && find /usr/local/lib/node_modules -type f \( -name '*.md' -o -name '*.map' -o -name 'CHANGELOG*' \) -delete \
-  && find /usr/local/lib/node_modules -type d \( -name 'test' -o -name 'tests' -o -name '__tests__' -o -name '.github' \) -prune -exec rm -rf {} + 2>/dev/null || true
-
 FROM node:${NODE_VERSION}
 
+ARG DSH_VERSION=latest
 LABEL org.opencontainers.image.title="dsh-docker" \
       org.opencontainers.image.description="Unofficial community Docker image for DeepSeek Harness (dsh). Not affiliated with DeepSeek AI." \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.vendor="community" \
-      org.opencontainers.image.documentation="https://github.com/deepseek-ai/deepseek-harness"
+      org.opencontainers.image.vendor="community"
 
-RUN rm -rf /usr/local/lib/node_modules/npm \
-           /usr/local/lib/node_modules/corepack \
-           /usr/local/bin/npm \
-           /usr/local/bin/npx \
-           /usr/local/bin/corepack \
+ENV npm_config_update_notifier=false \
+    npm_config_fund=false \
+    npm_config_audit=false \
+    NODE_ENV=production
+
+# local install keeps the full dependency tree (global + multi-stage copy broke ESM resolve)
+WORKDIR /opt/dsh
+RUN npm install --omit=dev "@deepseek-ai/dsh@${DSH_VERSION}" \
+  && npm cache clean --force \
+  && ln -sf /opt/dsh/node_modules/.bin/dsh /usr/local/bin/dsh \
   && groupadd --gid 10001 dsh \
   && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin dsh \
   && mkdir -p /home/dsh/.dsh /home/dsh/workspace \
-  && chown -R dsh:dsh /home/dsh
-
-COPY --from=build /usr/local/lib/node_modules /usr/local/lib/node_modules
-COPY --from=build /usr/local/bin/dsh /usr/local/bin/dsh
+  && chown -R dsh:dsh /home/dsh /opt/dsh
 
 USER dsh
 WORKDIR /home/dsh/workspace
 # upstream resolveDshHome(): $DSH_HOME or ~/.dsh
 ENV HOME=/home/dsh \
     DSH_HOME=/home/dsh/.dsh \
-    NODE_ENV=production \
-    DSH_PORT=3080
+    DSH_PORT=3080 \
+    PATH="/opt/dsh/node_modules/.bin:${PATH}"
 
 VOLUME ["/home/dsh/.dsh", "/home/dsh/workspace"]
 
