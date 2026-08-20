@@ -1,18 +1,14 @@
-# dsh is internal only. nginx terminates HTTPS (self-signed RSA) on the host.
+# dsh is internal only. Caddy terminates HTTPS (self-signed) on the host.
 #
 #   docker compose up -d
 #   open https://127.0.0.1:8443  or  https://<lan-ip>:8443
-#   accept the certificate warning once (needed for crypto.randomUUID on LAN)
+#   accept the certificate warning once
 #
-# Password:
-#   echo 'AUTH_PASSWORD=secret' > .env && docker compose up -d
+# Copy env template:
+#   cp .env.example .env
 #
 # Standard HTTPS port:
-#   CADDY_PORT=443  →  use HTTPS_PORT instead
-#   HTTPS_PORT=443 docker compose up -d  →  https://host
-#
-# Paths:
-#   DSH_HOME_PATH=./dsh-home DSH_WORKSPACE=/path/to/project docker compose up -d
+#   HTTPS_PORT=443 docker compose up -d
 
 services:
   dsh:
@@ -32,16 +28,18 @@ services:
       - /tmp
     user: "10001:10001"
 
-  nginx:
-    image: nginx:alpine
+  caddy:
+    image: caddy:2-alpine
     ports:
       - "${HTTPS_PORT:-8443}:443"
     environment:
       AUTH_USER: ${AUTH_USER:-dsh}
       AUTH_PASSWORD: ${AUTH_PASSWORD:-}
+      CADDY_LISTEN: "443"
     volumes:
-      - ./nginx/entrypoint.sh:/entrypoint.sh:ro
-      - nginx-certs:/etc/nginx/certs
+      - ./caddy/entrypoint.sh:/entrypoint.sh:ro
+      - caddy-data:/data
+      - caddy-config:/config
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     depends_on:
       - dsh
@@ -51,4 +49,5 @@ services:
 
 volumes:
   dsh-home:
-  nginx-certs:
+  caddy-data:
+  caddy-config:
