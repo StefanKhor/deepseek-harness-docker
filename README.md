@@ -45,6 +45,16 @@ docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
 Open http://\<lan-ip>:3081 or http://127.0.0.1:3081  
 Port: `CADDY_PORT` (default `3081`).
 
+**Password (optional basic auth)** — set when starting Caddy:
+
+```bash
+export AUTH_USER=dsh          # default: dsh
+export AUTH_PASSWORD=secret   # empty = no password
+docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
+```
+
+Browser will prompt for user/password. Leave `AUTH_PASSWORD` unset for open LAN access.
+
 Stop: `docker compose down` · with Caddy:  
 `docker compose -f docker-compose.yml -f docker-compose.caddy.yml down`
 
@@ -54,8 +64,9 @@ Stop: `docker compose down` · with Caddy:
 |---|---|---|
 | Local | `docker compose up -d` | http://127.0.0.1:3080 |
 | LAN / remote | `… -f docker-compose.caddy.yml up -d` | http://\<ip>:3081 (via Caddy) |
+| + password | same + `AUTH_PASSWORD=…` | browser login prompt |
 
-Prefer **127.0.0.1** for local HTTP. Plain `http://LAN-IP` without a proper setup can break the UI (`crypto.randomUUID`). Prefer localhost or put real HTTPS in front if you need that on a bare IP.
+Prefer **127.0.0.1** for local HTTP. Plain `http://LAN-IP` can break the UI (`crypto.randomUUID`); use localhost or HTTPS if that happens.
 
 ## Data Persistence
 

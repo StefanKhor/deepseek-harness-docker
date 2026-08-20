@@ -1,4 +1,0 @@
-# Public/LAN front door → dsh on the compose network
-:3081 {
-	reverse_proxy dsh:3080
-}

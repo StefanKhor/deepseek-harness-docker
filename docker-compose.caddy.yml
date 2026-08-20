@@ -1,9 +1,10 @@
 # LAN / remote access: Caddy is required (dsh stays off the public interface).
 #
 #   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
-#   open http://<lan-ip>:3081  or  http://127.0.0.1:3081
+#   open http://<lan-ip>:3081
 #
-# dsh is not published on the host; only Caddy is.
+# Optional password (browser basic auth):
+#   AUTH_PASSWORD=secret AUTH_USER=dsh docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
 
 services:
   dsh:
@@ -13,8 +14,13 @@ services:
     image: caddy:2-alpine
     ports:
       - "${CADDY_PORT:-3081}:3081"
+    environment:
+      AUTH_USER: ${AUTH_USER:-dsh}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-}
+      CADDY_LISTEN: "3081"
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     depends_on:
       - dsh
     restart: unless-stopped
