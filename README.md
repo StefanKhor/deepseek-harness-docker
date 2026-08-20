@@ -12,49 +12,50 @@ Unofficial community Docker image for [DeepSeek Harness](https://github.com/deep
 
 ## Installation
 
-### 1. Docker
+### 1. Docker (local only)
 
 ```bash
-docker run --rm -p 3080:3080 \
+docker run --rm -p 127.0.0.1:3080:3080 \
   -v dsh-home:/home/dsh/.dsh \
   -v "$PWD:/home/dsh/workspace" \
   ghcr.io/stefankhor/dsh-docker:latest
 ```
 
+Binds **127.0.0.1 only** — not reachable from LAN. For remote/LAN, use Compose + Caddy below.
+
 ### 2. Docker Compose
+
+**Local only** (default):
 
 ```bash
 git clone https://github.com/StefanKhor/deepseek-harness-docker.git
 cd deepseek-harness-docker
-
-# optional paths:
-# export DSH_HOME_PATH=./dsh-home
-# export DSH_WORKSPACE=/path/to/your/project
-# export DSH_PORT=3080
+# optional: DSH_HOME_PATH / DSH_WORKSPACE / DSH_PORT
 docker compose up -d
 ```
 
-Stop: `docker compose down` (keeps data). Wipe: `docker compose down -v`.
+Open http://127.0.0.1:3080
 
-## Access
-
-### 1. Local HTTP
-
-http://127.0.0.1:3080 → **Settings → Models** → API key.
-
-Use **127.0.0.1 / localhost**, not a LAN IP. Plain `http://192.168.x.x` is not a secure context — the UI can fail with `crypto.randomUUID is not a function`.
-
-### 2. Optional Caddy HTTP (same install)
+**LAN / remote** — Caddy is required (dsh is not published on the host):
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
 ```
 
-Open **http://127.0.0.1:3081** (Caddy → dsh). Port: `CADDY_PORT` (default `3081`).
+Open http://\<lan-ip>:3081 or http://127.0.0.1:3081  
+Port: `CADDY_PORT` (default `3081`).
 
-Stop both: `docker compose -f docker-compose.yml -f docker-compose.caddy.yml down`
+Stop: `docker compose down` · with Caddy:  
+`docker compose -f docker-compose.yml -f docker-compose.caddy.yml down`
 
-Default `docker compose up` stays **dsh only** (no Caddy).
+## Access
+
+| Mode | Command | URL |
+|---|---|---|
+| Local | `docker compose up -d` | http://127.0.0.1:3080 |
+| LAN / remote | `… -f docker-compose.caddy.yml up -d` | http://\<ip>:3081 (via Caddy) |
+
+Prefer **127.0.0.1** for local HTTP. Plain `http://LAN-IP` without a proper setup can break the UI (`crypto.randomUUID`). Prefer localhost or put real HTTPS in front if you need that on a bare IP.
 
 ## Data Persistence
 

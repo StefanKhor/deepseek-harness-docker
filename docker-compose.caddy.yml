@@ -1,9 +1,9 @@
-# Optional Caddy HTTP reverse proxy in front of dsh (same install folder).
-# Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
+# LAN / remote access: Caddy is required (dsh stays off the public interface).
 #
-# Open http://127.0.0.1:3081
-# dsh stays internal; Caddy publishes the host port.
+#   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
+#   open http://<lan-ip>:3081  or  http://127.0.0.1:3081
+#
+# dsh is not published on the host; only Caddy is.
 
 services:
   dsh:

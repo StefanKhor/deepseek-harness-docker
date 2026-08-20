@@ -1,4 +1,4 @@
-# Optional reverse proxy in front of dsh (HTTP).
+# Public/LAN front door → dsh on the compose network
 :3081 {
 	reverse_proxy dsh:3080
 }
