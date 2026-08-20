@@ -2,8 +2,8 @@
 set -eu
 
 USER="${AUTH_USER:-dsh}"
-# Listen HTTPS on 3080 inside the container (host maps 3080:3080)
-PORT="${CADDY_LISTEN:-3080}"
+# Always TLS on standard HTTPS port inside the container
+PORT="${CADDY_LISTEN:-443}"
 CFG=/etc/caddy/Caddyfile
 
 mkdir -p /etc/caddy /data /config

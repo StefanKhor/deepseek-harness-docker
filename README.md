@@ -28,17 +28,28 @@ cd deepseek-harness-docker
 docker compose up -d
 ```
 
-Open **https://127.0.0.1:3080** or **https://\<lan-ip>:3080** (must be `https://`, not `http://`).
+Open **https://127.0.0.1:8443** or **https://\<lan-ip>:8443**
 
-Accept the self-signed cert warning (Advanced → Proceed).  
-`ERR_SSL_PROTOCOL_ERROR` usually means an old HTTP container is still on 3080 — recreate:
+| Port choice | How | URL |
+|---|---|---|
+| **8443** (default) | nothing extra | `https://host:8443` |
+| **443** | `CADDY_PORT=443` in `.env` | `https://host` (no port) |
+| custom | `CADDY_PORT=9443` | `https://host:9443` |
+
+```bash
+# use standard HTTPS port instead of 8443
+echo 'CADDY_PORT=443' >> .env
+docker compose up -d --force-recreate
+```
+
+Accept the self-signed cert warning (Advanced → Proceed).
 
 ```bash
 docker compose down
 git pull
 docker compose up -d --force-recreate
 docker compose logs caddy
-# should show: caddy: https://0.0.0.0:3080 ...
+# should show: caddy: https://0.0.0.0:443 ...
 ```
 
 Stop: `docker compose down` · wipe data: `docker compose down -v`
@@ -58,14 +69,14 @@ Use **http://127.0.0.1:3080** only (localhost is already a secure context). No L
 
 | | |
 |---|---|
-| URL | **https://**127.0.0.1:3080 or **https://**\<lan-ip>:3080 |
+| URL | **https://**127.0.0.1:8443 or **https://**\<lan-ip>:8443 |
 | Password | `AUTH_PASSWORD` in `.env` (optional) |
 | User | `AUTH_USER` (default `dsh`) |
-| Port | `CADDY_PORT` (default `3080` → container 443) |
+| Port | `CADDY_PORT` (default **8443** → container **443**) |
 
 ```bash
 docker compose logs caddy | head
-# https + basic_auth ...  OR  https only ...
+curl -kI https://127.0.0.1:8443
 ```
 
 ## Data Persistence
