@@ -38,11 +38,15 @@ RUN printf 'node-linker=hoisted\n' > .npmrc \
   && chown -R dsh:dsh /home/dsh /opt/dsh \
   && rm -rf /root/.local /tmp/*
 
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 USER dsh
 WORKDIR /home/dsh/workspace
 ENV HOME=/home/dsh \
     DSH_HOME=/home/dsh/.dsh \
-    DSH_PORT=3080
+    DSH_PORT=3080 \
+    DSH_INTERNAL_PORT=13080
 
 VOLUME ["/home/dsh/.dsh", "/home/dsh/workspace"]
 
@@ -52,5 +56,5 @@ STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.DSH_PORT||3080)+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-ENTRYPOINT ["dsh", "web", "--host", "0.0.0.0", "--no-open"]
-CMD ["--port", "3080"]
+# dsh binds 127.0.0.1 only (upstream); entrypoint proxies 0.0.0.0:3080 for Docker publish
+ENTRYPOINT ["docker-entrypoint.sh"]
