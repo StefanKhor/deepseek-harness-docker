@@ -21,50 +21,46 @@ docker run --rm -p 3080:3080 \
   ghcr.io/stefankhor/dsh-docker:latest
 ```
 
-No built-in login. For remote access, put your own reverse proxy (Caddy, nginx, Traefik, etc.) with auth in front of port 3080.
-
 ### 2. Docker Compose
 
 ```bash
 git clone https://github.com/StefanKhor/deepseek-harness-docker.git
 cd deepseek-harness-docker
 
-######### CUSTOM PATH #########
+# optional paths:
 # export DSH_HOME_PATH=./dsh-home
 # export DSH_WORKSPACE=/path/to/your/project
 # export DSH_PORT=3080
 docker compose up -d
 ```
 
-Stop and keep data: `docker compose down`.
-To wipe data: `docker compose down -v`.
+Stop: `docker compose down` (keeps data). Wipe: `docker compose down -v`.
 
 ## Access
 
-### 1. Local Only
+### 1. Local HTTP
 
-http://127.0.0.1:3080
+http://127.0.0.1:3080 → **Settings → Models** → API key.
 
-### 2. Auth
+Use **127.0.0.1 / localhost**, not a LAN IP. Plain `http://192.168.x.x` is not a secure context — the UI can fail with `crypto.randomUUID is not a function`.
 
-This repo ships dsh only. For a password gate, put a reverse proxy in front of port 3080 (Caddy, nginx, Traefik, etc.).
+### 2. Optional HTTPS (Caddy, same install)
 
-Keep dsh on **3080** (upstream default); put Caddy on **3081** with basic auth.
+For LAN / remote IP access, use the bundled Caddy override (self-signed TLS):
 
 ```bash
-caddy hash-password   # paste hash below
+docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
 ```
 
-```caddyfile
-:3081 {
-	basicauth {
-		dsh $2a$14$YOUR_BCRYPT_HASH
-	}
-	reverse_proxy 127.0.0.1:3080
-}
-```
+Open **https://127.0.0.1:8443** or **https://\<lan-ip>:8443** (accept the certificate warning once).
 
-Open http://127.0.0.1:3081 (auth) → proxies to dsh on 3080.
+| Env | Default | Meaning |
+|---|---|---|
+| `CADDY_HTTPS_PORT` | `8443` | host HTTPS port |
+
+Stop both: `docker compose -f docker-compose.yml -f docker-compose.caddy.yml down`
+
+Default `docker compose up` stays **dsh only** (no Caddy).
 
 ## Data Persistence
 
