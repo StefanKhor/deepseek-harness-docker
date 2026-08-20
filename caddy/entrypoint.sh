@@ -13,6 +13,9 @@ if [ -n "${AUTH_PASSWORD:-}" ]; then
   cat >"$CFG" <<EOF
 {
 	auto_https disable_redirects
+	servers {
+		protocols h1 h2
+	}
 }
 :${PORT} {
 	tls internal
@@ -27,6 +30,9 @@ else
   cat >"$CFG" <<EOF
 {
 	auto_https disable_redirects
+	servers {
+		protocols h1 h2
+	}
 }
 :${PORT} {
 	tls internal
