@@ -15,7 +15,6 @@ on:
       - docker-compose.yml
       - .github/workflows/docker.yml
   schedule:
-    # npm poll; skip step exits early when v* tag already on GHCR
     - cron: "*/10 * * * *"
   workflow_dispatch:
     inputs:
@@ -27,13 +26,10 @@ on:
 permissions:
   contents: read
   packages: write
-  id-token: write
-  attestations: write
   actions: write
 
 env:
   REGISTRY: ghcr.io
-  # GHCR requires lowercase owner
   IMAGE_NAME: stefankhor/dsh-docker
 
 jobs:
@@ -82,15 +78,15 @@ jobs:
 
       - name: Set up QEMU
         if: steps.skip.outputs.exists != 'true'
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Buildx
         if: steps.skip.outputs.exists != 'true'
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
         if: steps.skip.outputs.exists != 'true' && github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -99,7 +95,7 @@ jobs:
       - name: Docker metadata
         id: meta
         if: steps.skip.outputs.exists != 'true'
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -116,12 +112,11 @@ jobs:
       - name: Build and push
         id: build
         if: steps.skip.outputs.exists != 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
-          load: false
           build-args: |
             DSH_VERSION=${{ steps.ver.outputs.version }}
           tags: ${{ steps.meta.outputs.tags }}
@@ -129,13 +124,6 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          provenance: mode=max
-          sbom: true
-
-      - name: Attest
-        if: steps.skip.outputs.exists != 'true' && github.event_name != 'pull_request' && steps.build.outcome == 'success'
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
+          # keep package list clean (no SBOM/provenance sidecar versions)
+          provenance: false
+          sbom: false
