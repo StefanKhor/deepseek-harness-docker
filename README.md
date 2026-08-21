@@ -1,4 +1,4 @@
-# dsh-docker
+# [DeepSeek-Harness-Docker (dsh-docker)](https://github.com/StefanKhor/deepseek-harness-docker)
 
 > Unofficial community Docker image for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`) prebuilt with optional nginx AUTH.
 
@@ -8,7 +8,6 @@
 |---|---|
 | GitHub Container Registry | `ghcr.io/stefankhor/dsh-docker` | `docker pull ghcr.io/stefankhor/dsh-docker:latest` |
 | Docker Hub | `stefankhor/dsh-docker` | `docker pull stefankhor/dsh-docker:latest` |
-
 
 | | |
 |---|---|
@@ -45,8 +44,8 @@ docker run --rm -p 127.0.0.1:3080:3080 \
 
 | | |
 |---|---|
-| Local | **https://**127.0.0.1:8443 |
-| LAN | **https://**\<lan-ip>:8443 + set `DSH_TRUSTED_HOSTS` |
+| Local | **https://127.0.0.1:8443 |
+| LAN/Remote | **https://**\<lan-ip>:8443 + set `DSH_TRUSTED_HOSTS` in .env |
 | Port | `HTTPS_PORT` (default **8443**) |
 | nginx password | `AUTH_PASSWORD` / `AUTH_USER` (optional) |
 
@@ -79,5 +78,4 @@ Open **https://\<lan-ip>:8443** (accept cert; login if password set).
 
 - [MIT](LICENSE) · [NOTICE](NOTICE)
 - [[Upstream] DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness/blob/master/LICENSE)
-
-Remote-config opt-in patch inspired by [AlliotTech/deepseek-harness-docker](https://github.com/AlliotTech/deepseek-harness-docker).
+- Remote-config opt-in patch inspired by [AlliotTech/deepseek-harness-docker](https://github.com/AlliotTech/deepseek-harness-docker).
