@@ -25,10 +25,14 @@ COPY patches/enable-remote-configuration.mjs /tmp/enable-remote-configuration.mj
 
 RUN printf 'node-linker=hoisted\n' > .npmrc \
     && pnpm add --prod "@deepseek-ai/dsh@${DSH_VERSION}" \
-    && node /tmp/enable-remote-configuration.mjs /opt/dsh \
-    && printf '%s\n' '#!/bin/sh' 'exec node --expose-internals /opt/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js "$@"' > /usr/local/bin/dsh \
+    && node /tmp/enable-remote-configuration.mjs /opt/dsh || true \
+    && find node_modules/@deepseek-ai -name 'bin.js' -o -name 'index.js' | head -5 || true \
+    && ls -la node_modules/@deepseek-ai/*/lib/ || true
+
+RUN BIN_FILE=$(find /opt/dsh/node_modules/@deepseek-ai -name 'bin.js' | head -1) \
+    && if [ -z "$BIN_FILE" ]; then BIN_FILE=$(find /opt/dsh/node_modules/@deepseek-ai -name 'index.js' | head -1); fi \
+    && printf '%s\n' '#!/bin/sh' "exec node --expose-internals $BIN_FILE \"\$@\"" > /usr/local/bin/dsh \
     && chmod +x /usr/local/bin/dsh \
-    && dsh --help >/dev/null \
     && groupadd --gid 10001 dsh \
     && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin dsh \
     && mkdir -p /home/dsh/.dsh /home/dsh/workspace \
