@@ -28,8 +28,7 @@ RUN printf 'node-linker=hoisted\n' > .npmrc \
     && printf '[]\n' > /opt/dsh/cordis.yml \
     && node /tmp/enable-remote-configuration.mjs /opt/dsh || true
 
-RUN BIN_FILE=$(find /opt/dsh/node_modules/@deepseek-ai -name 'bin.js' | head -1) \
-    && if [ -z "$BIN_FILE" ]; then BIN_FILE=$(find /opt/dsh/node_modules/@deepseek-ai -name 'index.js' | head -1); fi \
+RUN BIN_FILE=/opt/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js \
     && printf '%s\n' '#!/bin/sh' "exec node --expose-internals $BIN_FILE \"\$@\"" > /usr/local/bin/dsh \
     && chmod +x /usr/local/bin/dsh \
     && groupadd --gid 10001 dsh \
