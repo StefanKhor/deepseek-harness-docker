@@ -6,7 +6,8 @@ Unofficial community Docker image for [DeepSeek Harness](https://github.com/deep
 
 | | |
 |---|---|
-| Image | `ghcr.io/stefankhor/dsh-docker` |
+| GHCR | `ghcr.io/stefankhor/dsh-docker` |
+| Docker Hub | `stefankhor/dsh-docker` (after Hub secrets are set) |
 | Tags | `latest`, `0.1.0-rc.7` (matches npm `@deepseek-ai/dsh`) |
 | Arch | `amd64`, `arm64` |
 
@@ -76,6 +77,29 @@ docker run --rm -p 127.0.0.1:3080:3080 \
 |---|---|---|
 | `/home/dsh/.dsh` | settings, keys, sessions | volume `dsh-home` |
 | `/home/dsh/workspace` | agent project files | `./workspace` |
+
+## Registries
+
+| Registry | Image |
+|---|---|
+| GitHub Container Registry | `ghcr.io/stefankhor/dsh-docker` |
+| Docker Hub | `stefankhor/dsh-docker` |
+
+```bash
+docker pull ghcr.io/stefankhor/dsh-docker:latest
+docker pull stefankhor/dsh-docker:latest
+```
+
+### Publish to Docker Hub (one-time)
+
+1. Create a public Hub repo: [hub.docker.com](https://hub.docker.com) → **Create repository** → `dsh-docker`.
+2. Create an **Access Token** (Read & Write): Account Settings → Security.
+3. In GitHub repo **Settings → Secrets and variables → Actions**, add:
+   - `DOCKERHUB_USERNAME` — your Hub username (e.g. `stefankhor`)
+   - `DOCKERHUB_TOKEN` — the access token (not account password)
+4. **Actions → docker → Run workflow** with **force** checked (republish even if GHCR tag exists).
+
+Without those secrets, CI still publishes to GHCR only.
 
 ## License
 

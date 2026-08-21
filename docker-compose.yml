@@ -10,7 +10,7 @@
 
 services:
   dsh:
-    image: ghcr.io/stefankhor/dsh-docker:latest
+    image: ${DSH_IMAGE:-ghcr.io/stefankhor/dsh-docker:latest}
     expose:
       - "3080"
     environment:
