@@ -130,12 +130,17 @@ jobs:
         run: |
           set -euo pipefail
           VER="${{ steps.ver.outputs.version }}"
-          TAGS="${GHCR_IMAGE}:latest
-          ${GHCR_IMAGE}:${VER}"
-          if [ "${{ steps.hub.outputs.enabled }}" = "true" ]; then
-            TAGS="${TAGS}
-          ${HUB_IMAGE}:latest
-          ${HUB_IMAGE}:${VER}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR="${{ github.event.pull_request.number }}"
+            TAGS="${GHCR_IMAGE}:pr-${PR}"
+          else
+            TAGS="${GHCR_IMAGE}:latest
+            ${GHCR_IMAGE}:${VER}"
+            if [ "${{ steps.hub.outputs.enabled }}" = "true" ]; then
+              TAGS="${TAGS}
+            ${HUB_IMAGE}:latest
+            ${HUB_IMAGE}:${VER}"
+            fi
           fi
           {
             echo "list<<EOF"
