@@ -1,10 +1,14 @@
 # dsh is internal only. nginx terminates HTTPS (self-signed RSA) on the host.
-#
+# 
 #   cp .env.example .env
 #   # set DSH_TRUSTED_HOSTS=your-lan-ip   and DSH_ALLOW_REMOTE_CONFIGURATION=1 for LAN UI
 #   docker compose up -d
 #   open https://127.0.0.1:8443  or  https://<lan-ip>:8443
-#
+# 
+# NEW: Gateway auth (compulsory for this docker compose)
+#       basic auth enabled via nginx (AUTH_USER / AUTH_PASSWORD in .env)
+#       nginx is the only entrypoint; dsh is kept exactly as original (internal only)
+# 
 # Compose .env is ONLY for Docker Compose (not mounted into dsh).
 # Do not put DSH_ALLOW_REMOTE_CONFIGURATION / DSH_TRUSTED_HOSTS in the agent workspace.
 

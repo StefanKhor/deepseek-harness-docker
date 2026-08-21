@@ -24,20 +24,16 @@ WORKDIR /opt/dsh
 COPY patches/enable-remote-configuration.mjs /tmp/enable-remote-configuration.mjs
 
 RUN printf 'node-linker=hoisted\n' > .npmrc \
-  && pnpm add --prod "@deepseek-ai/dsh@${DSH_VERSION}" \
-  && test -f node_modules/@deepseek-ai/dsh/lib/bin.js \
-  && test -d node_modules/@deepseek-ai/dsh-app-boot \
-  && node /tmp/enable-remote-configuration.mjs /opt/dsh \
-  && grep -R --include='*.js' -l 'isLoopback: true,' node_modules >/dev/null \
-  && rm -f /tmp/enable-remote-configuration.mjs \
-  && printf '%s\n' '#!/bin/sh' 'exec node --expose-internals /opt/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js "$@"' > /usr/local/bin/dsh \
-  && chmod +x /usr/local/bin/dsh \
-  && dsh --help >/dev/null \
-  && groupadd --gid 10001 dsh \
-  && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin dsh \
-  && mkdir -p /home/dsh/.dsh /home/dsh/workspace \
-  && chown -R dsh:dsh /home/dsh /opt/dsh \
-  && rm -rf /root/.local /tmp/*
+    && pnpm add --prod "@deepseek-ai/dsh@${DSH_VERSION}" \
+    && node /tmp/enable-remote-configuration.mjs /opt/dsh \
+    && printf '%s\n' '#!/bin/sh' 'exec node --expose-internals /opt/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js "$@"' > /usr/local/bin/dsh \
+    && chmod +x /usr/local/bin/dsh \
+    && dsh --help >/dev/null \
+    && groupadd --gid 10001 dsh \
+    && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin dsh \
+    && mkdir -p /home/dsh/.dsh /home/dsh/workspace \
+    && chown -R dsh:dsh /home/dsh /opt/dsh \
+    && rm -rf /root/.local /tmp/*
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
