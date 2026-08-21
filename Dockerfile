@@ -24,14 +24,12 @@ WORKDIR /opt/dsh
 COPY patches/enable-remote-configuration.mjs /tmp/enable-remote-configuration.mjs
 
 RUN printf 'node-linker=hoisted\n' > .npmrc \
-    && pnpm add --prod "@deepseek-ai/dsh@${DSH_VERSION}"
-
-RUN node /tmp/enable-remote-configuration.mjs /opt/dsh \
+    && pnpm add --prod "@deepseek-ai/dsh@${DSH_VERSION}" \
+    && node /tmp/enable-remote-configuration.mjs /opt/dsh \
     && printf '%s\n' '#!/bin/sh' 'exec node --expose-internals /opt/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js "$@"' > /usr/local/bin/dsh \
     && chmod +x /usr/local/bin/dsh \
-    && dsh --help >/dev/null
-
-RUN groupadd --gid 10001 dsh \
+    && dsh --help >/dev/null \
+    && groupadd --gid 10001 dsh \
     && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin dsh \
     && mkdir -p /home/dsh/.dsh /home/dsh/workspace \
     && chown -R dsh:dsh /home/dsh /opt/dsh \
