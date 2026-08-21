@@ -51,7 +51,7 @@ ENV HOME=/home/dsh \
     DSH_ALLOW_REMOTE_CONFIGURATION=0 \
     DSH_TELEMETRY_DISABLED=1
 
-VOLUME ["/home/dsh/.dsh"]
+VOLUME ["/home/dsh/.dsh", "/home/dsh/workspace"]
 
 EXPOSE 3080
 STOPSIGNAL SIGTERM

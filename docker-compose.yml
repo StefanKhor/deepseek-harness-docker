@@ -27,6 +27,8 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
     volumes:
       - ${DSH_HOME_PATH:-dsh-home}:/home/dsh/.dsh
+      # User project files dsh can access (read/write in the UI)
+      - ${DSH_WORKSPACE:-./workspace}:/home/dsh/workspace
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
