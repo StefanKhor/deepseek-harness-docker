@@ -45,6 +45,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 USER dsh
 WORKDIR /home/dsh/workspace
 ENV HOME=/home/dsh \
+    NODE_PATH=/opt/dsh/node_modules \
     DSH_HOME=/home/dsh/.dsh \
     DSH_PORT=3080 \
     DSH_INTERNAL_PORT=13080 \
