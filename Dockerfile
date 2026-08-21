@@ -25,9 +25,8 @@ COPY patches/enable-remote-configuration.mjs /tmp/enable-remote-configuration.mj
 
 RUN printf 'node-linker=hoisted\n' > .npmrc \
     && pnpm add "@deepseek-ai/dsh@${DSH_VERSION}" \
-    && node /tmp/enable-remote-configuration.mjs /opt/dsh || true \
-    && find node_modules/@deepseek-ai -name 'bin.js' -o -name 'index.js' | head -5 || true \
-    && ls -la node_modules/@deepseek-ai/*/lib/ || true
+    && printf '---\n' > /opt/dsh/cordis.yml \
+    && node /tmp/enable-remote-configuration.mjs /opt/dsh || true
 
 RUN BIN_FILE=$(find /opt/dsh/node_modules/@deepseek-ai -name 'bin.js' | head -1) \
     && if [ -z "$BIN_FILE" ]; then BIN_FILE=$(find /opt/dsh/node_modules/@deepseek-ai -name 'index.js' | head -1); fi \
