@@ -25,8 +25,11 @@ cp .env.example .env
 # Important!
 # Edit .env (Refer Setting Section below)
 mkdir -p workspace
+sudo chown -R 10001:10001 workspace
 docker compose up -d
 ```
+
+> **Note:** The container runs as uid `10001` (`dsh`). The `chown` ensures the agent can read/write project files.
 
 To Stop: `docker compose down` 
 To Wipe (CAUTION!!!): `docker compose down -v`
@@ -34,6 +37,8 @@ To Wipe (CAUTION!!!): `docker compose down -v`
 ### 2. Docker (Localhost only)
 
 ```bash
+mkdir -p workspace
+sudo chown -R 10001:10001 workspace
 docker run --rm -p 127.0.0.1:3080:3080 \
   -v dsh-home:/home/dsh/.dsh \
   -v "$PWD/workspace:/home/dsh/workspace" \
