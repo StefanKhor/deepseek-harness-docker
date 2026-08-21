@@ -24,7 +24,7 @@ WORKDIR /opt/dsh
 COPY patches/enable-remote-configuration.mjs /tmp/enable-remote-configuration.mjs
 
 RUN printf 'node-linker=hoisted\n' > .npmrc \
-    && pnpm add --prod "@deepseek-ai/dsh@${DSH_VERSION}" \
+    && pnpm add "@deepseek-ai/dsh@${DSH_VERSION}" \
     && node /tmp/enable-remote-configuration.mjs /opt/dsh || true \
     && find node_modules/@deepseek-ai -name 'bin.js' -o -name 'index.js' | head -5 || true \
     && ls -la node_modules/@deepseek-ai/*/lib/ || true
