@@ -25,11 +25,11 @@ cp .env.example .env
 # Important!
 # Edit .env (Refer Setting Section below)
 mkdir -p workspace
-sudo chown -R 10001:10001 workspace
+sudo chown -R 10001:10001 workspace  # container runs as uid 10001 (dsh)
 docker compose up -d
 ```
 
-> **Note:** The container runs as uid `10001` (`dsh`). The `chown` ensures the agent can read/write project files.
+> **Note:** The container runs as the `dsh` user (uid `10001`). The `chown` ensures the agent can read and write project files.
 
 To Stop: `docker compose down` 
 To Wipe (CAUTION!!!): `docker compose down -v`
@@ -73,10 +73,20 @@ Open **https://\<lan-ip>:8443** (accept cert; login if password set).
 
 ## Data Persistence
 
+The container runs as the `dsh` user (uid `10001`, gid `10001`). Any host directory mounted into the container must be writable by this user.
+
 | Path in container | What | Default on host |
 |---|---|---|
 | `/home/dsh/.dsh` | settings, keys, sessions | volume `dsh-home` |
 | `/home/dsh/workspace` | agent project files | `./workspace` |
+
+To fix `Permission denied` errors on the workspace:
+
+```bash
+sudo chown -R 10001:10001 workspace
+```
+
+Or use a path the `dsh` user already owns (e.g. inside `/home/dsh/.dsh`).
 
 
 ## License
