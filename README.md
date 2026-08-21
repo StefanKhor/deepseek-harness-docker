@@ -1,32 +1,47 @@
 # dsh-docker
 
-Unofficial community Docker image for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`).
+> Unofficial community Docker image for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`) prebuilt with optional nginx AUTH.
 
-> Not affiliated with DeepSeek AI.
+### Registries
+
+| Registry | Image |
+|---|---|
+| GitHub Container Registry | `ghcr.io/stefankhor/dsh-docker` | `docker pull ghcr.io/stefankhor/dsh-docker:latest` |
+| Docker Hub | `stefankhor/dsh-docker` | `docker pull stefankhor/dsh-docker:latest` |
+
 
 | | |
 |---|---|
-| GHCR | `ghcr.io/stefankhor/dsh-docker` |
-| Docker Hub | `stefankhor/dsh-docker` (after Hub secrets are set) |
 | Tags | `latest`, `0.1.0-rc.7` (matches npm `@deepseek-ai/dsh`) |
 | Arch | `amd64`, `arm64` |
 
 ## Installation
 
+### 1. Docker Compose (Localhost + LAN / Remote + Auth) (Recommended)
 ```bash
 git clone https://github.com/StefanKhor/deepseek-harness-docker.git
 cd deepseek-harness-docker
 cp .env.example .env
-# edit .env (see Access / LAN below)
+
+# Important!
+# Edit .env (Refer Setting Section below)
 mkdir -p workspace
 docker compose up -d
 ```
 
-Open **https://127.0.0.1:8443** (accept self-signed cert once).
+To Stop: `docker compose down` 
+To Wipe (CAUTION!!!): `docker compose down -v`
 
-Stop: `docker compose down` · wipe: `docker compose down -v`
+### 2. Docker (Localhost only)
 
-## Access
+```bash
+docker run --rm -p 127.0.0.1:3080:3080 \
+  -v dsh-home:/home/dsh/.dsh \
+  -v "$PWD/workspace:/home/dsh/workspace" \
+  ghcr.io/stefankhor/dsh-docker:latest
+```
+
+## Setting
 
 | | |
 |---|---|
@@ -35,23 +50,13 @@ Stop: `docker compose down` · wipe: `docker compose down -v`
 | Port | `HTTPS_PORT` (default **8443**) |
 | nginx password | `AUTH_PASSWORD` / `AUTH_USER` (optional) |
 
-### Compose `.env` vs workspace
-
-| File | Who reads it |
-|---|---|
-| compose repo `.env` | **Docker Compose only** → injects into container env |
-| `/home/dsh/workspace/.env` | **dsh** (agent project) — must **not** contain launch-only vars |
-
-Upstream rejects launch-only vars in a workspace `.env`, e.g. `DSH_ALLOW_REMOTE_CONFIGURATION`, `DSH_TRUSTED_HOSTS`.  
-Default workspace is **`./workspace`**, not the compose repo, so this does not happen.
-
-### LAN / remote
+### For LAN / Remote access
 
 nginx rewrites API traffic as loopback to dsh (dsh is not on the public network).  
 Use **HTTPS** + optional `AUTH_PASSWORD` for access control.
 
 ```bash
-# compose .env (NOT workspace/.env)
+# compose .env
 HTTPS_PORT=8443
 AUTH_PASSWORD=your-secret
 ```
@@ -62,15 +67,6 @@ docker compose up -d --force-recreate
 
 Open **https://\<lan-ip>:8443** (accept cert; login if password set).
 
-### Docker only (no nginx)
-
-```bash
-docker run --rm -p 127.0.0.1:3080:3080 \
-  -v dsh-home:/home/dsh/.dsh \
-  -v "$PWD/workspace:/home/dsh/workspace" \
-  ghcr.io/stefankhor/dsh-docker:latest
-```
-
 ## Data Persistence
 
 | Path in container | What | Default on host |
@@ -78,28 +74,6 @@ docker run --rm -p 127.0.0.1:3080:3080 \
 | `/home/dsh/.dsh` | settings, keys, sessions | volume `dsh-home` |
 | `/home/dsh/workspace` | agent project files | `./workspace` |
 
-## Registries
-
-| Registry | Image |
-|---|---|
-| GitHub Container Registry | `ghcr.io/stefankhor/dsh-docker` |
-| Docker Hub | `stefankhor/dsh-docker` |
-
-```bash
-docker pull ghcr.io/stefankhor/dsh-docker:latest
-docker pull stefankhor/dsh-docker:latest
-```
-
-### Publish to Docker Hub (one-time)
-
-1. Create a public Hub repo: [hub.docker.com](https://hub.docker.com) → **Create repository** → `dsh-docker`.
-2. Create an **Access Token** (Read & Write): Account Settings → Security.
-3. In GitHub repo **Settings → Secrets and variables → Actions**, add:
-   - `DOCKERHUB_USERNAME` — your Hub username (e.g. `stefankhor`)
-   - `DOCKERHUB_TOKEN` — the access token (not account password)
-4. **Actions → docker → Run workflow** with **force** checked (republish even if GHCR tag exists).
-
-Without those secrets, CI still publishes to GHCR only.
 
 ## License
 
