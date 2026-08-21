@@ -1,19 +1,21 @@
 /**
- * Docker / reverse-proxy compatibility patches for @deepseek-ai/dsh-client-connection.
+ * Docker compatibility patches for DeepSeek Harness (fail-closed).
  *
- * 1) Server: when DSH_ALLOW_REMOTE_CONFIGURATION=1, privileged settings/credentials
- *    APIs accept trustedHosts (AlliotTech approach). Fail-closed if source drifts.
+ * 1) Server (lib/index.js): DSH_ALLOW_REMOTE_CONFIGURATION=1 lets privileged
+ *    settings/credentials methods accept trustedHosts.
  *
- * 2) Browser: force connection.isLoopback = true so SettingsDescribeMirror uses
- *    host persistence. Upstream sets memory mode for non-loopback page hostnames
- *    (e.g. https://10.0.0.6:8443), which shows "settings are unavailable in this browser"
- *    even when the proxy rewrites Host to 127.0.0.1. Safe in this image because
- *    dsh is not published publicly — only nginx reaches it.
+ * 2) Browser (lib/client.js, served as /plugins/.../client.js): force
+ *    connection.isLoopback = true so SettingsDescribeMirror uses host mode.
+ *    Upstream sets memory mode when location.hostname is not loopback
+ *    (LAN IP / public host) → "settings are unavailable in this browser".
+ *
+ * Safe in this image: dsh is only reachable via the compose nginx edge.
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { resolve, join } from 'node:path'
 
 const root = resolve(process.argv[2] ?? process.cwd())
+const nm = resolve(root, 'node_modules')
 
 function replaceExactlyOnce(source, before, after, description, file) {
   const occurrences = source.split(before).length - 1
@@ -23,13 +25,28 @@ function replaceExactlyOnce(source, before, after, description, file) {
   return source.replace(before, after)
 }
 
-// --- server-side privileged fence ---
-const serverPath = resolve(root, 'node_modules/@deepseek-ai/dsh-client-connection/lib/index.js')
-if (!existsSync(serverPath)) {
-  throw new Error(`missing ${serverPath}`)
+function walkJs(dir, out = []) {
+  if (!existsSync(dir)) return out
+  for (const name of readdirSync(dir)) {
+    if (name === '.bin' || name === '.cache') continue
+    const p = join(dir, name)
+    let st
+    try { st = statSync(p) } catch { continue }
+    if (st.isDirectory()) walkJs(p, out)
+    else if (name.endsWith('.js')) out.push(p)
+  }
+  return out
 }
-let server = readFileSync(serverPath, 'utf8')
 
+// --- server privileged fence ---
+const serverCandidates = [
+  resolve(nm, '@deepseek-ai/dsh-client-connection/lib/index.js'),
+  ...walkJs(nm).filter(p => p.replace(/\\/g, '/').endsWith('@deepseek-ai/dsh-client-connection/lib/index.js')),
+]
+const serverPath = serverCandidates.find(existsSync)
+if (!serverPath) throw new Error('dsh-client-connection/lib/index.js not found under node_modules')
+
+let server = readFileSync(serverPath, 'utf8')
 server = replaceExactlyOnce(
   server,
   `const PRIVILEGED_METHODS = new Set([
@@ -79,7 +96,6 @@ const REMOTE_CONFIGURATION_METHODS = new Set([
   'privileged method registry',
   serverPath,
 )
-
 server = replaceExactlyOnce(
   server,
   `\tconst trustedHosts = config?.trustedHosts ?? [];
@@ -90,7 +106,6 @@ server = replaceExactlyOnce(
   'remote configuration trust list',
   serverPath,
 )
-
 server = replaceExactlyOnce(
   server,
   `\t\tif (method !== void 0 && PRIVILEGED_METHODS.has(method) && !isTrustedApiRequest(request, [])) return new Response("forbidden", { status: 403 });`,
@@ -101,25 +116,28 @@ server = replaceExactlyOnce(
   'privileged request fence',
   serverPath,
 )
-
 writeFileSync(serverPath, server)
 console.log(`Patched server ${serverPath}`)
 
-// --- browser-side isLoopback (settings mirror host vs memory) ---
-const clientPath = resolve(root, 'node_modules/@deepseek-ai/dsh-client-connection/lib/client.js')
-if (!existsSync(clientPath)) {
-  throw new Error(`missing ${clientPath}`)
+// --- browser isLoopback (every client.js copy) ---
+const needle = 'isLoopback: pageLocation === void 0 || isLoopbackHostname(pageLocation.hostname),'
+const replacement = 'isLoopback: true,'
+let clientHits = 0
+for (const file of walkJs(nm)) {
+  const text = readFileSync(file, 'utf8')
+  if (!text.includes(needle)) continue
+  if (text.split(needle).length - 1 !== 1) {
+    throw new Error(`browser isLoopback: expected 1 match in ${file}, found ${text.split(needle).length - 1}`)
+  }
+  writeFileSync(file, text.replace(needle, replacement))
+  console.log(`Patched client ${file}`)
+  clientHits += 1
 }
-let client = readFileSync(clientPath, 'utf8')
+if (clientHits === 0) {
+  throw new Error('browser isLoopback pattern not found in any node_modules *.js (upstream changed?)')
+}
 
-// Force host-mode settings for all page origins in this container image.
-client = replaceExactlyOnce(
-  client,
-  `isLoopback: pageLocation === void 0 || isLoopbackHostname(pageLocation.hostname),`,
-  `isLoopback: true,`,
-  'browser connection isLoopback',
-  clientPath,
-)
-
-writeFileSync(clientPath, client)
-console.log(`Patched client ${clientPath}`)
+// verify
+const verify = walkJs(nm).some(f => readFileSync(f, 'utf8').includes('isLoopback: true,'))
+if (!verify) throw new Error('post-patch verify failed: isLoopback: true not present')
+console.log(`OK: patched ${clientHits} client bundle(s)`)

@@ -28,6 +28,7 @@ RUN printf 'node-linker=hoisted\n' > .npmrc \
   && test -f node_modules/@deepseek-ai/dsh/lib/bin.js \
   && test -d node_modules/@deepseek-ai/dsh-app-boot \
   && node /tmp/enable-remote-configuration.mjs /opt/dsh \
+  && grep -R --include='*.js' -l 'isLoopback: true,' node_modules >/dev/null \
   && rm -f /tmp/enable-remote-configuration.mjs \
   && printf '%s\n' '#!/bin/sh' 'exec node --expose-internals /opt/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js "$@"' > /usr/local/bin/dsh \
   && chmod +x /usr/local/bin/dsh \
