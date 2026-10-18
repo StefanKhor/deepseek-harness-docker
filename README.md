@@ -166,6 +166,43 @@ need the link once per browser:
   and your LAN IP need the link once each. Wiping the data
   (`docker compose down -v`) deletes the cookie secret and logs everyone out.
 
+### Staying signed in longer
+
+The cookie lasts **30 days** by default, after which a browser must use a
+login link again. For a shared or long-lived deployment you can extend it in
+`.env` (value in days):
+
+```ini
+DSH_BROWSER_COOKIE_MAX_AGE_DAYS=3650    # ~10 years
+```
+
+Then apply it:
+
+```bash
+docker compose up -d
+```
+
+The longer lifetime applies to the cookie the next time a browser logs in.
+
+### Logging back in (admin)
+
+When someone is logged out, the procedure is the same as the first login — get
+the current token and open the link once:
+
+```bash
+# newest token from the running container
+docker compose logs dsh | grep 'token=' | tail -1
+```
+
+Then open `https://<host>:8443/?token=<that value>`. Because the token is tied
+to the running container, the command always returns the one that works. If the
+logs are gone, restart the container to mint a fresh token:
+
+```bash
+docker compose restart dsh
+docker compose logs dsh | grep 'token=' | tail -1
+```
+
 ---
 
 ## Adding your API key
@@ -398,6 +435,7 @@ Architectures: `linux/amd64`, `linux/arm64`.
 | `DSH_HOME_PATH` | `dsh-home` (volume) | Where settings/sessions are stored |
 | `DSH_IMAGE` | `ghcr.io/stefankhor/dsh-docker:latest` | Image to run |
 | `DSH_TRUSTED_HOSTS` | *(empty)* | Only for bypassing nginx on a non-loopback host |
+| `DSH_BROWSER_COOKIE_MAX_AGE_DAYS` | `30` | Days a browser stays signed in (upstream default 30) |
 | `DSH_TELEMETRY_DISABLED` | `1` | Disable telemetry |
 
 See [`.env.example`](.env.example) for the annotated version.

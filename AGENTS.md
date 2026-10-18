@@ -7,7 +7,7 @@ Unofficial community Docker image for [DeepSeek Harness](https://github.com/deep
 ## Structure
 
 - `Dockerfile` — single-stage build: installs `@deepseek-ai/dsh` via pnpm, creates the `dsh` user (uid 10001)
-- `docker-entrypoint.sh` — TCP proxy (`0.0.0.0:DSH_PORT` → loopback:`DSH_INTERNAL_PORT`) + `dsh web` launcher; rewrites the printed token URL to the published port
+- `docker-entrypoint.sh` — TCP proxy (`0.0.0.0:DSH_PORT` → loopback:`DSH_INTERNAL_PORT`) + `dsh web` launcher; rewrites the printed token URL to the published port; optionally writes `$DSH_HOME/browser-cookie.patch.yml` and passes `--patch`
 - `docker-compose.yml` — production stack with an nginx reverse proxy + HTTPS
 - `nginx/entrypoint.sh` — nginx config generator for LAN/remote access with optional basic auth
 - `.env.example` — reference environment variables
@@ -15,6 +15,7 @@ Unofficial community Docker image for [DeepSeek Harness](https://github.com/deep
 ## Key constraints
 
 - `dsh` 0.2+ requires a **browser-session token**. `dsh web` prints the token URL at startup; the index (`/`) returns 401 without it. Only static assets (e.g. `/manifest.webmanifest`) are public, so the image healthcheck probes one of those.
+- The browser cookie lasts `cookieMaxAgeDays` days (upstream default **30**). `DSH_BROWSER_COOKIE_MAX_AGE_DAYS` overrides it: the entrypoint writes a `--patch` overlay targeting the `connection` row and **must restate `trustedHosts: !!js ctx.webRuntime.trustedHosts`** (a patch replaces the whole `config`).
 - Upstream ships runtime-composed profiles under `$DSH_HOME/profiles/<name>` (`cordis.yml` there is empty; the tree comes from `package.json` bundles + `cordis.patch.yml`). The image does **not** ship or patch a top-level `cordis.yml`.
 - No upstream source patching is performed. Remote settings/credentials work for any authenticated browser session, and the frontend already reports `isLoopback` via `__DSH_TRANSPORT__`.
 - The `dsh` CLI lives at `node_modules/@deepseek-ai/dsh/lib/bin.js`. Do NOT use `find -name 'bin.js'` — it will pick up `cordis/bin.js` (alphabetically first), the wrong entry point.
@@ -40,6 +41,9 @@ DSH_VERSION=0.2.0-rc.2 docker compose build
 - Token flow: `docker compose logs dsh | grep 'token='`, open
   `https://127.0.0.1:8443/?token=<token>`; the request should `303` to `/` and set a
   `dsh-auth-*` cookie
+- Cookie lifetime: with `DSH_BROWSER_COOKIE_MAX_AGE_DAYS=365`, the `Set-Cookie`
+  from the token exchange must carry `Max-Age=31536000` (`dsh web --dump-config`
+  should show `cookieMaxAgeDays: 365` on the `connection` row)
 - Entrypoint: verify `dsh web` starts and the TCP proxy forwards traffic
 
 ## Commit conventions
