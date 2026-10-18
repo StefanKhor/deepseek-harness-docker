@@ -184,6 +184,9 @@ jobs:
           sh -n docker-entrypoint.sh
           sh -n nginx/entrypoint.sh
 
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
       - name: Build image (amd64)
         uses: docker/build-push-action@v7
         with:
