@@ -148,16 +148,23 @@ That's it. Next time, just open **<https://127.0.0.1:8443>** — no token needed
 
 ## Logging in
 
-- The `?token=...` link only works **once**; it swaps the token for a cookie.
-- You normally only need it on a new browser or after clearing cookies.
-- If you get logged out, grab a fresh token:
+Opening the `?token=...` link swaps the token for a signed cookie, so you only
+need the link once per browser:
+
+- The token belongs to the **running container**. It is regenerated every time
+  `dsh` starts, so a link from an earlier run stops working.
+- The cookie does **not** expire with a restart — it is signed with a secret
+  stored in the `dsh-home` volume. It stays valid for **30 days**.
+- If you are ever logged out (expired cookie, cleared cookies, new browser),
+  get the current token:
 
   ```bash
   docker compose logs dsh | grep 'token='
   ```
 
-- The token changes every time the container restarts. The cookie does **not** —
-  it stays valid for 30 days.
+- Each browser and each host you use has its own login, so `127.0.0.1:8443`
+  and your LAN IP need the link once each. Wiping the data
+  (`docker compose down -v`) deletes the cookie secret and logs everyone out.
 
 ---
 
