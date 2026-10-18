@@ -31,15 +31,20 @@ if [ -n "${AUTH_PASSWORD:-}" ]; then
   echo "nginx: basic auth enabled user=${USER}"
 else
   rm -f "$HTPASSWD"
-  echo "nginx: no auth (set AUTH_PASSWORD to enable)"
+  echo "nginx: no basic auth (set AUTH_PASSWORD to enable); dsh token auth still applies"
 fi
 
 # Quoted heredoc so nginx $vars are not shell-expanded.
-# Host 127.0.0.1 + strip Origin/Sec-Fetch-Site: dsh only sees loopback
-# (nginx is the only peer on the compose network). Fixes LAN
-# "settings are unavailable" / privileged /api 403 without relying on
-# browser Host/Origin matching the public URL.
+# Present loopback Host/Origin to dsh: the bundled dsh Host/Origin fence then
+# admits every proxied request, and dsh's own browser-session token/cookie is
+# the real authentication gate. This lets LAN clients use the UI without
+# declaring every external authority in DSH_TRUSTED_HOSTS.
 cat >"$CONF" <<'NGEOF'
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
 server {
     listen 443 ssl;
     server_name _;
@@ -47,13 +52,18 @@ server {
     ssl_certificate     CERT_CRT;
     ssl_certificate_key CERT_KEY;
     ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1h;
+
+    # Agent attachments can exceed the 1m nginx default.
+    client_max_body_size 0;
 
     INCLUDE_AUTH
 
     location / {
         proxy_pass http://dsh:3080;
         proxy_http_version 1.1;
-        # Loopback Host + matching Origin (empty Origin string fails upstream trust parse)
+
         proxy_set_header Host 127.0.0.1;
         proxy_set_header Origin http://127.0.0.1;
         proxy_set_header Referer http://127.0.0.1/;
@@ -63,8 +73,14 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
+
+        # WebSocket (live event stream).
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection $connection_upgrade;
+
+        # Long-lived streams and large uploads.
+        proxy_buffering off;
+        proxy_request_buffering off;
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
     }
@@ -85,6 +101,7 @@ else
   sed -i '/INCLUDE_AUTH/d' "$CONF"
 fi
 
-echo "nginx: https://0.0.0.0:443 → dsh:3080 (Host rewritten to 127.0.0.1)"
+echo "nginx: https://0.0.0.0:443 -> dsh:3080 (Host rewritten to 127.0.0.1)"
+echo "nginx: open https://<host>:8443/?token=<token>  (get <token> from: docker compose logs dsh)"
 nginx -t
 exec nginx -g "daemon off;"
