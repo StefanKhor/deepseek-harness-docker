@@ -113,7 +113,10 @@ mkfifo "$FIFO"
 READER_PID=$!
 
 # shellcheck disable=SC2086
-dsh web --host 127.0.0.1 --port "$DSH_INTERNAL_PORT" --no-open $TRUSTED_ARGS $PATCH_ARGS "$@" >"$FIFO" 2>&1 &
+# --patch is a *launcher* flag: it must come before the app flags (--host,
+# --port, ...) because the launcher stops parsing its own options after the
+# first app argument.
+dsh web $PATCH_ARGS --host 127.0.0.1 --port "$DSH_INTERNAL_PORT" --no-open $TRUSTED_ARGS "$@" >"$FIFO" 2>&1 &
 DSH_PID=$!
 
 # Keep the container alive while both halves run. A process that exited but has
