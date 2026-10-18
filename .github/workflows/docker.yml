@@ -8,7 +8,6 @@ on:
       - .dockerignore
       - docker-compose.yml
       - .github/workflows/docker.yml
-      - patches/**
       - docker-entrypoint.sh
   pull_request:
     paths:
@@ -16,10 +15,10 @@ on:
       - .dockerignore
       - docker-compose.yml
       - .github/workflows/docker.yml
-      - patches/**
       - docker-entrypoint.sh
   schedule:
-    - cron: "*/10 * * * *"
+    # Check upstream for a new @deepseek-ai/dsh release a few times a day.
+    - cron: "0 */6 * * *"
   workflow_dispatch:
     inputs:
       dsh_version:
@@ -134,12 +133,9 @@ jobs:
             PR="${{ github.event.pull_request.number }}"
             TAGS="${GHCR_IMAGE}:pr-${PR}"
           else
-            TAGS="${GHCR_IMAGE}:latest
-            ${GHCR_IMAGE}:${VER}"
+            TAGS="${GHCR_IMAGE}:latest,${GHCR_IMAGE}:${VER}"
             if [ "${{ steps.hub.outputs.enabled }}" = "true" ]; then
-              TAGS="${TAGS}
-            ${HUB_IMAGE}:latest
-            ${HUB_IMAGE}:${VER}"
+              TAGS="${TAGS},${HUB_IMAGE}:latest,${HUB_IMAGE}:${VER}"
             fi
           fi
           {
@@ -147,8 +143,7 @@ jobs:
             echo "$TAGS"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
-          echo "Will push:"
-          echo "$TAGS"
+          echo "Will push: $TAGS"
 
       - name: Build and push
         id: build
@@ -171,3 +166,56 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
           sbom: false
+
+  # Build linux/amd64, boot it with a noexec /tmp (as Compose does), and verify
+  # the healthcheck plus the browser-session token exchange. Runs on PRs and
+  # pushes so a broken image never reaches a registry tag.
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate Compose file and shell scripts
+        run: |
+          set -euo pipefail
+          docker compose config >/dev/null
+          sh -n docker-entrypoint.sh
+          sh -n nginx/entrypoint.sh
+
+      - name: Build image (amd64)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: dsh-docker:smoke
+          cache-from: type=gha,scope=smoke
+          cache-to: type=gha,scope=smoke,mode=max
+          provenance: false
+          sbom: false
+
+      - name: Smoke test container
+        run: |
+          set -euo pipefail
+          docker run -d --name dsh-smoke --tmpfs /tmp:noexec -p 127.0.0.1:3080:3080 dsh-docker:smoke
+          for _ in $(seq 1 30); do
+            status="$(docker inspect dsh-smoke --format '{{.State.Health.Status}}' 2>/dev/null || echo starting)"
+            [ "$status" = "healthy" ] && break
+            [ "$status" = "unhealthy" ] && { docker logs dsh-smoke; exit 1; }
+            sleep 3
+          done
+          [ "$(docker inspect dsh-smoke --format '{{.State.Health.Status}}')" = "healthy" ] || { docker logs dsh-smoke; exit 1; }
+
+          # Public static asset proves the proxy and web server are serving.
+          curl -fsS http://127.0.0.1:3080/manifest.webmanifest >/dev/null
+
+          TOKEN="$(docker logs dsh-smoke 2>&1 | grep -o 'token=[A-Za-z0-9_-]*' | head -1 | cut -d= -f2)"
+          [ -n "$TOKEN" ]
+          COOKIE="$(curl -sS -D - -o /dev/null "http://127.0.0.1:3080/?token=${TOKEN}" | grep -i '^set-cookie:' | sed 's/^[Ss]et-[Cc]ookie: //' | cut -d';' -f1)"
+          [ -n "$COOKIE" ]
+          test "$(curl -sS -o /dev/null -w '%{http_code}' -H "Cookie: $COOKIE" http://127.0.0.1:3080/)" = "200"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3080/)" = "401"
+          docker rm -f dsh-smoke

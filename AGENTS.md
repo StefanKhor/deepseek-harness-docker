@@ -6,19 +6,20 @@ Unofficial community Docker image for [DeepSeek Harness](https://github.com/deep
 
 ## Structure
 
-- `Dockerfile` — single-stage build: installs `@deepseek-ai/dsh` via pnpm, patches server/browser for remote config, creates `dsh` user
-- `docker-entrypoint.sh` — TCP proxy (0.0.0.0:DSH_PORT → loopback:DSH_INTERNAL_PORT) + `dsh web` launcher
-- `docker-compose.yml` — production stack with optional nginx reverse proxy + HTTPS
-- `nginx/` — nginx config templates for LAN/remote access with basic auth
-- `patches/enable-remote-configuration.mjs` — runtime monkey-patches for remote settings/credentials API + browser loopback detection
+- `Dockerfile` — single-stage build: installs `@deepseek-ai/dsh` via pnpm, creates the `dsh` user (uid 10001)
+- `docker-entrypoint.sh` — TCP proxy (`0.0.0.0:DSH_PORT` → loopback:`DSH_INTERNAL_PORT`) + `dsh web` launcher; rewrites the printed token URL to the published port
+- `docker-compose.yml` — production stack with an nginx reverse proxy + HTTPS
+- `nginx/entrypoint.sh` — nginx config generator for LAN/remote access with optional basic auth
 - `.env.example` — reference environment variables
 
 ## Key constraints
 
-- `cordis.yml` must be a valid YAML top-level array (e.g. `[]`). `---` alone is not valid since `@deepseek-ai/cordis-plugin-include` strictly validates the config.
-- The `dsh` CLI lives at `node_modules/@deepseek-ai/dsh/lib/bin.js`. Do NOT use `find -name 'bin.js'` — it will pick up `cordis/bin.js` (alphabetically first) which is the wrong entry point.
-- Upstream `dsh` binds to `127.0.0.1` only. The entrypoint TCP proxy publishes `0.0.0.0` for container networking.
-- Patches are fail-safe: warn and skip if upstream patterns change. Do not hard-fail on patch mismatches.
+- `dsh` 0.2+ requires a **browser-session token**. `dsh web` prints the token URL at startup; the index (`/`) returns 401 without it. Only static assets (e.g. `/manifest.webmanifest`) are public, so the image healthcheck probes one of those.
+- Upstream ships runtime-composed profiles under `$DSH_HOME/profiles/<name>` (`cordis.yml` there is empty; the tree comes from `package.json` bundles + `cordis.patch.yml`). The image does **not** ship or patch a top-level `cordis.yml`.
+- No upstream source patching is performed. Remote settings/credentials work for any authenticated browser session, and the frontend already reports `isLoopback` via `__DSH_TRANSPORT__`.
+- The `dsh` CLI lives at `node_modules/@deepseek-ai/dsh/lib/bin.js`. Do NOT use `find -name 'bin.js'` — it will pick up `cordis/bin.js` (alphabetically first), the wrong entry point.
+- Upstream `dsh` binds to `127.0.0.1` only (it rejects `--host 0.0.0.0`). The entrypoint TCP proxy publishes `0.0.0.0` for container networking.
+- Prefer fixing upstream compatibility in the Dockerfile/entrypoint/config rather than reviving source patches; keep patches fail-safe if one is ever reintroduced.
 
 ## Build & run
 
@@ -29,14 +30,17 @@ docker compose up -d
 
 Or with variables:
 ```bash
-DSH_VERSION=0.1.0-rc.7 docker compose build
+DSH_VERSION=0.2.0-rc.2 docker compose build
 ```
 
 ## Testing
 
 - Build: `docker compose build` must succeed
-- Smoke: `docker compose up -d` then `curl -sf http://127.0.0.1:3080/` returns 200
-- Entrypoint: verify `dsh web` starts and TCP proxy forwards traffic
+- Smoke: `docker compose up -d` then `curl -o /dev/null -w '%{http_code}' http://127.0.0.1:3080/manifest.webmanifest` returns `200` (the index `/` returns `401` by design without the browser token)
+- Token flow: `docker compose logs dsh | grep 'token='`, open
+  `https://127.0.0.1:8443/?token=<token>`; the request should `303` to `/` and set a
+  `dsh-auth-*` cookie
+- Entrypoint: verify `dsh web` starts and the TCP proxy forwards traffic
 
 ## Commit conventions
 

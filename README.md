@@ -1,6 +1,6 @@
 # [DeepSeek-Harness-Docker (dsh-docker)](https://github.com/StefanKhor/deepseek-harness-docker)
 
-> Unofficial community Docker image for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`) prebuilt with optional nginx AUTH.
+> Unofficial community Docker image for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`) with an optional nginx HTTPS/auth front end.
 
 ### Registries
 
@@ -11,30 +11,58 @@
 
 | | |
 |---|---|
-| Tags | `latest`, `0.1.0-rc.7` (matches npm `@deepseek-ai/dsh`) |
+| Tags | `latest` and the exact npm version, e.g. `0.2.0-rc.2` (matches `@deepseek-ai/dsh`) |
 | Arch | `amd64`, `arm64` |
+
+## Authentication
+
+Since `dsh` 0.2, the Web UI is protected by a **one-time browser-session token**.
+`dsh web` mints a token at startup and prints a URL such as:
+
+```
+dsh web: http://localhost:3080/?token=8f3...
+```
+
+Opening that URL exchanges the token for a signed, host-only cookie (30 days),
+after which the UI loads normally. The token is printed to the container logs:
+
+```bash
+docker compose logs dsh | grep 'token='
+```
+
+- **Docker Compose:** open `https://127.0.0.1:8443/?token=<token>` or
+  `https://<lan-ip>:8443/?token=<token>`.
+- **Plain Docker:** open `http://127.0.0.1:3080/?token=<token>`.
+- The token only needs to be used once per browser. If the container restarts,
+  the cookie keeps working; use the new token only in a fresh browser.
+- Set `AUTH_PASSWORD` to add an nginx HTTP basic-auth layer in front of dsh.
 
 ## Installation
 
-### 1. Docker Compose (Localhost + LAN / Remote + Auth) (Recommended)
+### 1. Docker Compose (localhost + LAN / remote, HTTPS + auth) — recommended
+
 ```bash
 git clone https://github.com/StefanKhor/deepseek-harness-docker.git
 cd deepseek-harness-docker
 cp .env.example .env
 
 # Important!
-# Edit .env (Refer Setting Section below)
+# Edit .env (see Settings below)
 mkdir -p workspace
 sudo chown -R 10001:10001 workspace  # container runs as uid 10001 (dsh)
 docker compose up -d
+
+# Grab the login URL/token
+docker compose logs dsh | grep 'token='
 ```
 
-> **Note:** The container runs as the `dsh` user (uid `10001`). The `chown` ensures the agent can read and write project files.
+> **Note:** The container runs as the `dsh` user (uid `10001`). The `chown`
+> ensures the agent can read and write project files.
 
-To Stop: `docker compose down` 
-To Wipe (CAUTION!!!): `docker compose down -v`
+To stop: `docker compose down`
+To wipe (CAUTION, deletes settings/sessions): `docker compose down -v`
 
-### 2. Docker (Localhost only)
+### 2. Docker (localhost only)
 
 ```bash
 mkdir -p workspace
@@ -43,41 +71,52 @@ docker run --rm -p 127.0.0.1:3080:3080 \
   -v dsh-home:/home/dsh/.dsh \
   -v "$PWD/workspace:/home/dsh/workspace" \
   ghcr.io/stefankhor/dsh-docker:latest
+
+# In another terminal, copy the ?token=... value from the logs:
+docker logs <container> | grep 'token='
 ```
 
-## Setting
+## Settings
 
 | | |
 |---|---|
-| Local | **https://127.0.0.1:8443 |
-| LAN/Remote | **https://**\<lan-ip>:8443 + set `DSH_TRUSTED_HOSTS` in .env |
-| Port | `HTTPS_PORT` (default **8443**) |
-| nginx password | `AUTH_PASSWORD` / `AUTH_USER` (optional) |
+| Local (Compose) | `https://127.0.0.1:8443/?token=<token>` |
+| LAN / remote (Compose) | `https://<lan-ip>:8443/?token=<token>` |
+| Local (plain Docker) | `http://127.0.0.1:3080/?token=<token>` |
+| Port | `HTTPS_PORT` (default **8443**) for Compose |
+| nginx basic auth | `AUTH_PASSWORD` / `AUTH_USER` (optional, recommended) |
 
-### For LAN / Remote access
+### LAN / remote access
 
-nginx rewrites API traffic as loopback to dsh (dsh is not on the public network).  
-Use **HTTPS** + optional `AUTH_PASSWORD` for access control.
+The bundled nginx terminates HTTPS and proxies to dsh with a loopback
+`Host`/`Origin`, so no extra trust configuration is required for LAN clients —
+dsh's token/cookie authentication is the gate. Use HTTPS and set
+`AUTH_PASSWORD` for access control.
 
 ```bash
-# compose .env
+# .env
 HTTPS_PORT=8443
+AUTH_USER=dsh
 AUTH_PASSWORD=your-secret
 ```
 
 ```bash
-docker compose up -d --force-recreate
+docker compose up -d
+docker compose logs dsh | grep 'token='
+# open https://<lan-ip>:8443/?token=<token> (accept the self-signed cert)
 ```
 
-Open **https://\<lan-ip>:8443** (accept cert; login if password set).
+`DSH_TRUSTED_HOSTS` only matters if you bypass nginx and expose dsh directly on
+a non-loopback authority (e.g. `DSH_TRUSTED_HOSTS=10.0.0.6:3080`).
 
 ## Data Persistence
 
-The container runs as the `dsh` user (uid `10001`, gid `10001`). Any host directory mounted into the container must be writable by this user.
+The container runs as the `dsh` user (uid `10001`, gid `10001`). Any host
+directory mounted into the container must be writable by this user.
 
 | Path in container | What | Default on host |
 |---|---|---|
-| `/home/dsh/.dsh` | settings, keys, sessions | volume `dsh-home` |
+| `/home/dsh/.dsh` | settings, keys, sessions, browser-session secret | volume `dsh-home` |
 | `/home/dsh/workspace` | agent project files | `./workspace` |
 
 To fix `Permission denied` errors on the workspace:
@@ -88,9 +127,7 @@ sudo chown -R 10001:10001 workspace
 
 Or use a path the `dsh` user already owns (e.g. inside `/home/dsh/.dsh`).
 
-
 ## License
 
 - [MIT](LICENSE) · [NOTICE](NOTICE)
 - [[Upstream] DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness/blob/master/LICENSE)
-- Remote-config opt-in patch inspired by [AlliotTech/deepseek-harness-docker](https://github.com/AlliotTech/deepseek-harness-docker).

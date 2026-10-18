@@ -1,17 +1,27 @@
 #!/bin/sh
 set -eu
-# Upstream rejects --host 0.0.0.0. Bind dsh to loopback; TCP proxy publishes :3080.
+
+# dsh binds to loopback only (upstream refuses --host 0.0.0.0 because it would
+# expose remote code execution). A small TCP proxy publishes the container port
+# so Docker port mapping and other Compose services can reach it.
+#
+# Starting with dsh 0.2, the Web UI is protected by a one-time browser-session
+# token. dsh prints the URL with its internal loopback port; we rewrite that
+# line to the published port and also surface the token for reverse-proxy use.
+
 DSH_INTERNAL_PORT="${DSH_INTERNAL_PORT:-13080}"
 DSH_PORT="${DSH_PORT:-3080}"
 
-# Comma-separated host or host:port → dsh --trusted-host (fixes LAN /api 403)
+# Comma-separated host or host:port -> dsh --trusted-host (Host/Origin fence).
+# Only needed when dsh is reached directly on a non-loopback authority; the
+# bundled nginx presents a loopback Host and needs no entries here.
 TRUSTED_ARGS=""
 if [ -n "${DSH_TRUSTED_HOSTS:-}" ]; then
   OLD_IFS=$IFS
   IFS=,
   set --
   for h in $DSH_TRUSTED_HOSTS; do
-    h=$(echo "$h" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    h=$(printf '%s' "$h" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     [ -n "$h" ] && set -- "$@" "$h"
   done
   IFS=$OLD_IFS
@@ -23,36 +33,80 @@ if [ -n "${DSH_TRUSTED_HOSTS:-}" ]; then
   fi
 fi
 
-if [ "${DSH_ALLOW_REMOTE_CONFIGURATION:-0}" = "1" ] && [ -z "$TRUSTED_ARGS" ]; then
-  echo "error: DSH_ALLOW_REMOTE_CONFIGURATION=1 requires DSH_TRUSTED_HOSTS" >&2
-  exit 1
-fi
-
-node -e "
-const net=require('net');
-const target=Number(process.env.DSH_INTERNAL_PORT||13080);
-const port=Number(process.env.DSH_PORT||3080);
-net.createServer((client)=>{
-  const up=net.connect(target,'127.0.0.1');
-  client.pipe(up); up.pipe(client);
-  up.on('error',()=>client.destroy());
-  client.on('error',()=>up.destroy());
-}).listen(port,'0.0.0.0');
-" &
-PROXY_PID=$!
-
-# shellcheck disable=SC2086
-dsh web --host 127.0.0.1 --port "$DSH_INTERNAL_PORT" --no-open $TRUSTED_ARGS "$@" &
-DSH_PID=$!
+PROXY_PID=""
+DSH_PID=""
+READER_PID=""
+FIFO=""
 
 term() {
-  kill "$DSH_PID" "$PROXY_PID" 2>/dev/null || true
-  wait "$DSH_PID" "$PROXY_PID" 2>/dev/null || true
+  [ -n "$DSH_PID" ] && kill "$DSH_PID" 2>/dev/null || true
+  [ -n "$PROXY_PID" ] && kill "$PROXY_PID" 2>/dev/null || true
+  [ -n "$READER_PID" ] && kill "$READER_PID" 2>/dev/null || true
+  [ -n "$DSH_PID" ] && wait "$DSH_PID" 2>/dev/null || true
+  [ -n "$PROXY_PID" ] && wait "$PROXY_PID" 2>/dev/null || true
+  [ -n "$READER_PID" ] && wait "$READER_PID" 2>/dev/null || true
+  [ -n "$FIFO" ] && rm -f "$FIFO" || true
+  return 0
 }
-trap term INT TERM
+trap 'term; exit 0' INT TERM
 
-while kill -0 "$DSH_PID" 2>/dev/null && kill -0 "$PROXY_PID" 2>/dev/null; do
+# 0.0.0.0:DSH_PORT -> 127.0.0.1:DSH_INTERNAL_PORT
+node -e '
+const net = require("net");
+const target = Number(process.env.DSH_INTERNAL_PORT || 13080);
+const port = Number(process.env.DSH_PORT || 3080);
+net.createServer((client) => {
+  const up = net.connect(target, "127.0.0.1");
+  client.pipe(up); up.pipe(client);
+  up.on("error", () => client.destroy());
+  client.on("error", () => up.destroy());
+}).listen(port, "0.0.0.0");
+' &
+PROXY_PID=$!
+
+# Pipe dsh output through a FIFO so the startup URL can be rewritten. A FIFO
+# (unlike a pipeline) keeps the dsh process as a direct child we can signal.
+FIFO="$(mktemp -u /tmp/dsh-web.XXXXXX)"
+rm -f "$FIFO"
+mkfifo "$FIFO"
+(
+  while IFS= read -r line; do
+    case "$line" in
+      *"http://127.0.0.1:${DSH_INTERNAL_PORT}/?token="*)
+        token="${line##*token=}"
+        token="${token%% *}"
+        printf '%s\n' "dsh web: http://localhost:${DSH_PORT}/?token=${token}"
+        printf '%s\n' "dsh web: behind the bundled nginx use https://<host>:${HTTPS_PORT:-8443}/?token=${token}"
+        ;;
+      *)
+        printf '%s\n' "$line"
+        ;;
+    esac
+  done < "$FIFO"
+) &
+READER_PID=$!
+
+# shellcheck disable=SC2086
+dsh web --host 127.0.0.1 --port "$DSH_INTERNAL_PORT" --no-open $TRUSTED_ARGS "$@" >"$FIFO" 2>&1 &
+DSH_PID=$!
+
+# Keep the container alive while both halves run. A process that exited but has
+# not been reaped lingers as a zombie and still answers `kill -0`, so inspect
+# /proc to tell a live child from a zombie and let the container restart.
+alive() {
+  state=""
+  [ -r "/proc/$1/stat" ] || return 1
+  state="$(cut -d' ' -f3 "/proc/$1/stat" 2>/dev/null || true)"
+  [ -n "$state" ] && [ "$state" != "Z" ]
+}
+
+while alive "$DSH_PID" && alive "$PROXY_PID"; do
   sleep 1
 done
+
+STATUS=1
+if ! alive "$DSH_PID"; then
+  wait "$DSH_PID" || STATUS=$?
+fi
 term
-exit 1
+exit "$STATUS"
