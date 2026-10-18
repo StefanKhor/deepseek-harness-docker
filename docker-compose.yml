@@ -28,6 +28,8 @@ services:
       # (not through the bundled nginx). Comma-separated host or host:port.
       DSH_TRUSTED_HOSTS: ${DSH_TRUSTED_HOSTS:-}
       DSH_TELEMETRY_DISABLED: ${DSH_TELEMETRY_DISABLED:-1}
+      # Browser-session cookie lifetime in days (upstream default: 30).
+      DSH_BROWSER_COOKIE_MAX_AGE_DAYS: ${DSH_BROWSER_COOKIE_MAX_AGE_DAYS:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
     volumes:
       - ${DSH_HOME_PATH:-dsh-home}:/home/dsh/.dsh
